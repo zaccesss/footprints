@@ -1,6 +1,6 @@
 # Commands
 
-Every subcommand and flag of `footprints` 0.3.0, taken from its own `--help` output.
+Every subcommand and flag of `footprints` 0.4.0, taken from its own `--help` output.
 `footprints help <command>` or `footprints <command> --help` prints the same text in a terminal.
 
 ## Contents
