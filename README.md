@@ -94,7 +94,7 @@ CI tests all three with a real end-to-end run. The menu bar app is macOS only an
 | --- | --- |
 | Cargo (Rust 1.89 or later) | `cargo install footprints` |
 | Homebrew on macOS and Linux | `brew install zaccesss/tap/footprints` |
-| winget on Windows | `winget install zaccesss.Footprints`, once the package is accepted. Its first submission is pending review in the winget repository |
+| winget on Windows | `winget install zaccesss.Footprints`, once the package is accepted. Its first submission is [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542) |
 | Release binaries with sha256 sums | From the [GitHub releases](https://github.com/zaccesss/footprints/releases) |
 | From source | `git clone https://github.com/zaccesss/footprints && cargo install --path footprints` |
 

@@ -26,8 +26,9 @@ What Footprints does today, what comes next and what is deliberately left for la
 - `footprints install <agent>` that writes the hook block into an agent's settings after showing
   the change and asking. Today every install command only prints.
 - The winget package `zaccesss.Footprints`. Its manifests are in
-  [`packaging/winget/`](packaging/winget) and the first version is pending review in the winget
-  repository. Later versions are submitted by the release workflow once it is accepted.
+  [`packaging/winget/`](packaging/winget) and the first version is
+  [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542).
+  Later versions are submitted by the release workflow once it is accepted.
 - Restoring the Windows read-only attribute on undo. Unix modes are restored, but Windows
   attributes are not recorded yet.
 

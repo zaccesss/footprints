@@ -56,7 +56,7 @@ winget install zaccesss.Footprints
 ```
 
 > [!NOTE]
-> The package `zaccesss.Footprints` is pending review in the winget repository. The command
+> The package `zaccesss.Footprints` is [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542). The command
 > works once it is accepted. Until then, use Cargo or the release binaries below.
 
 It installs the Windows zip from the GitHub release as a portable program with the command

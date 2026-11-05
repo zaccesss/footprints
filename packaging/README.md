@@ -59,7 +59,7 @@ or warns that the update failed, update the tap by hand the same way:
 
 The package is `zaccesss.Footprints`. The installer is the Windows zip from the release,
 installed as a portable program with the command alias `footprints`. The first version is
-pending review in the winget repository.
+[pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542).
 Once it is accepted, the release workflow submits every later version itself.
 
 1. Fill the manifests from the release files:
