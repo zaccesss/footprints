@@ -1,10 +1,11 @@
 //! capture tier 2: `footprints run`, a wrapper that works for any agent.
 //!
 //! before the child starts, every file under the watched directory is cloned into a staging
-//! area. On APFS a clone shares blocks with the original, so this costs almost nothing until a
-//! file changes. While the child runs a notify watcher (FSEvents on macOS, inotify on Linux)
-//! notes every touched path. Afterwards a rescan finds every created, changed and deleted file
-//! and records it with its pre-image and post-image.
+//! area. On APFS and on reflink file systems a clone shares blocks with the original, so this
+//! costs almost nothing until a file changes; Windows and other file systems get a plain copy.
+//! While the child runs a notify watcher (FSEvents on macOS, inotify on Linux,
+//! ReadDirectoryChangesW on Windows) notes every touched path. Afterwards a rescan finds every
+//! created, changed and deleted file and records it with its pre-image and post-image.
 //!
 //! the staging path and the list of files are saved on the pending command before the child
 //! starts. If the wrapper is killed, `footprints recover` (also run at the start of every
@@ -58,8 +59,7 @@ pub fn run(store: &Store, opts: &RunOptions) -> Result<RunOutcome> {
         Some(d) => d.clone(),
         None => std::env::current_dir()?,
     };
-    let root = root
-        .canonicalize()
+    let root = crate::platform::canonical(&root)
         .with_context(|| format!("watched directory {} does not exist", root.display()))?;
     let excl = snapshot::exclusions(store);
     if excl.iter().any(|x| root.starts_with(x)) {
@@ -107,8 +107,10 @@ pub fn run(store: &Store, opts: &RunOptions) -> Result<RunOutcome> {
     let events = Arc::new(Mutex::new(0usize));
     let watcher = start_watcher(&root, hints.clone(), events.clone());
 
+    // dropped on every way out, so a waiting console close handler is never left hanging
+    let _finished = Finished;
     let status = {
-        let _guard = SignalGuard::new();
+        let _guard = crate::signals::ChildGuard::new();
         Command::new(&opts.command[0])
             .args(&opts.command[1..])
             .current_dir(&root)
@@ -149,6 +151,16 @@ pub fn run(store: &Store, opts: &RunOptions) -> Result<RunOutcome> {
         changes,
         events: n_events,
     })
+}
+
+/// tells a waiting Windows console close handler the record is written once it is dropped,
+/// whether `finish` succeeded or not.
+struct Finished;
+
+impl Drop for Finished {
+    fn drop(&mut self) {
+        crate::signals::mark_finished();
+    }
 }
 
 /// compares the watched directory with its staged copy, records every change under the
@@ -223,7 +235,7 @@ pub fn recover(store: &Store) -> Result<Vec<String>> {
         let Some(staging) = cmd.staging.clone().map(PathBuf::from) else {
             continue;
         };
-        if pid_of(&staging).is_some_and(process_alive) {
+        if pid_of(&staging).is_some_and(crate::platform::process_alive) {
             referenced.insert(staging);
             continue;
         }
@@ -266,7 +278,12 @@ pub fn recover(store: &Store) -> Result<Vec<String>> {
     Ok(out)
 }
 
-fn pid_of(staging: &Path) -> Option<i32> {
+/// the process id of the wrapper that owns a staging area, taken from its name.
+pub(crate) fn staging_pid(staging: &Path) -> Option<u32> {
+    pid_of(staging)
+}
+
+fn pid_of(staging: &Path) -> Option<u32> {
     staging
         .file_name()?
         .to_str()?
@@ -283,7 +300,7 @@ fn clean_stale_staging(dir: &Path, referenced: &HashSet<PathBuf>) {
     };
     for e in entries.flatten() {
         let path = e.path();
-        if referenced.contains(&path) || pid_of(&path).is_some_and(process_alive) {
+        if referenced.contains(&path) || pid_of(&path).is_some_and(crate::platform::process_alive) {
             continue;
         }
         let old = e
@@ -296,18 +313,6 @@ fn clean_stale_staging(dir: &Path, referenced: &HashSet<PathBuf>) {
             let _ = fs::remove_dir_all(path);
         }
     }
-}
-
-#[cfg(unix)]
-fn process_alive(pid: i32) -> bool {
-    // SAFETY: signal 0 only checks that the process exists and sends nothing
-    let rc = unsafe { libc::kill(pid, 0) };
-    rc == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-}
-
-#[cfg(not(unix))]
-fn process_alive(_pid: i32) -> bool {
-    true
 }
 
 /// one lock file per running wrapper, holding the root it watches. Two runs over the same or
@@ -329,19 +334,23 @@ impl RootLock {
             let Some(pid) = p
                 .file_stem()
                 .and_then(|s| s.to_str())
-                .and_then(|s| s.parse::<i32>().ok())
+                .and_then(|s| s.parse::<u32>().ok())
             else {
                 continue;
             };
-            if !process_alive(pid) {
+            if !crate::platform::process_alive(pid) {
                 let _ = fs::remove_file(&p);
                 continue;
             }
             let other = PathBuf::from(fs::read_to_string(&p).unwrap_or_default().trim());
+            // a lock file written by hand or before paths were normalised still compares
+            let other = crate::platform::normalise(&other);
             if other.as_os_str().is_empty() {
                 continue;
             }
-            if other.starts_with(root) || root.starts_with(&other) {
+            if crate::platform::key_starts_with(&other, root)
+                || crate::platform::key_starts_with(root, &other)
+            {
                 bail!(
                     "another footprints run (process {pid}) is already watching {}, which \
                      overlaps {}. Wait for it to finish or pick a separate --dir",
@@ -364,27 +373,38 @@ impl Drop for RootLock {
 
 /// an exclusive advisory lock held while the lock directory is read and written, so two runs
 /// starting together cannot both see the other as absent.
-struct DirLock {
+/// `File::lock` is `flock` on Unix and `LockFileEx` on Windows. The lock is released
+/// when the file is closed, so a wrapper that is killed never leaves it held.
+pub(crate) struct DirLock {
     _file: fs::File,
 }
 
 impl DirLock {
-    fn take(path: &Path) -> Result<DirLock> {
+    pub(crate) fn take(path: &Path) -> Result<DirLock> {
         let file = fs::OpenOptions::new()
             .create(true)
             .truncate(false)
             .write(true)
             .open(path)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::io::AsRawFd;
-            // SAFETY: the descriptor is valid for the lifetime of `file`
-            let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) };
-            if rc != 0 {
-                bail!("could not lock {}", path.display());
+        file.lock()
+            .with_context(|| format!("could not lock {}", path.display()))?;
+        Ok(DirLock { _file: file })
+    }
+
+    /// None when another process holds the lock.
+    pub(crate) fn try_take(path: &Path) -> Result<Option<DirLock>> {
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(path)?;
+        match file.try_lock() {
+            Ok(()) => Ok(Some(DirLock { _file: file })),
+            Err(fs::TryLockError::WouldBlock) => Ok(None),
+            Err(fs::TryLockError::Error(e)) => {
+                Err(e).with_context(|| format!("could not lock {}", path.display()))
             }
         }
-        Ok(DirLock { _file: file })
     }
 }
 
@@ -401,33 +421,9 @@ fn stage(root: &Path, staging: &Path, files: &BTreeMap<PathBuf, snapshot::Meta>)
         if let Some(dir) = dest.parent() {
             fs::create_dir_all(dir)?;
         }
-        let _ = clone_or_copy(path, &dest);
+        let _ = crate::platform::clone_or_copy(path, &dest);
     }
     Ok(())
-}
-
-/// from `sys/clonefile.h`; the libc crate does not export it.
-#[cfg(target_os = "macos")]
-const CLONE_NOFOLLOW: u32 = 0x0001;
-
-#[cfg(target_os = "macos")]
-fn clone_or_copy(src: &Path, dst: &Path) -> std::io::Result<()> {
-    use std::ffi::CString;
-    use std::os::unix::ffi::OsStrExt;
-    let s = CString::new(src.as_os_str().as_bytes())?;
-    let d = CString::new(dst.as_os_str().as_bytes())?;
-    // SAFETY: both pointers are valid NUL-terminated strings that outlive the call
-    let rc = unsafe { libc::clonefile(s.as_ptr(), d.as_ptr(), CLONE_NOFOLLOW) };
-    if rc == 0 {
-        return Ok(());
-    }
-    // clonefile fails across volumes and on non-APFS disks, where a real copy still works
-    fs::copy(src, dst).map(|_| ())
-}
-
-#[cfg(not(target_os = "macos"))]
-fn clone_or_copy(src: &Path, dst: &Path) -> std::io::Result<()> {
-    fs::copy(src, dst).map(|_| ())
 }
 
 fn start_watcher(
@@ -493,47 +489,6 @@ pub fn shell_join(args: &[String]) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-#[cfg(unix)]
-const GUARDED: [libc::c_int; 4] = [libc::SIGINT, libc::SIGQUIT, libc::SIGHUP, libc::SIGTERM];
-
-/// while the child runs, Ctrl+C, a closed terminal or a plain `kill` would stop footprints
-/// before it records what the child did. A no-op handler keeps it alive until the child exits.
-/// A handler, unlike SIG_IGN, is reset on exec, so the child still gets the default behaviour.
-/// SIGKILL cannot be caught; `footprints recover` covers that case.
-struct SignalGuard {
-    #[cfg(unix)]
-    old: [libc::sighandler_t; 4],
-}
-
-#[cfg(unix)]
-extern "C" fn ignore_signal(_: libc::c_int) {}
-
-impl SignalGuard {
-    fn new() -> Self {
-        #[cfg(unix)]
-        {
-            let h = ignore_signal as *const () as libc::sighandler_t;
-            // SAFETY: the handler is async-signal-safe because it does nothing
-            let old = GUARDED.map(|sig| unsafe { libc::signal(sig, h) });
-            SignalGuard { old }
-        }
-        #[cfg(not(unix))]
-        SignalGuard {}
-    }
-}
-
-impl Drop for SignalGuard {
-    fn drop(&mut self) {
-        #[cfg(unix)]
-        for (sig, old) in GUARDED.iter().zip(self.old) {
-            // SAFETY: restores the disposition saved in new()
-            unsafe {
-                libc::signal(*sig, old);
-            }
-        }
-    }
 }
 
 #[cfg(test)]

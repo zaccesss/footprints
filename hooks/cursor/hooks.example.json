@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [{ "command": "footprints hook pre --from cursor", "matcher": "Write|Delete" }],
+    "postToolUse": [{ "command": "footprints hook post --from cursor", "matcher": "Write|Delete" }],
+    "postToolUseFailure": [{ "command": "footprints hook post --from cursor", "matcher": "Write|Delete" }],
+    "beforeShellExecution": [{ "command": "footprints hook pre --from cursor" }],
+    "afterShellExecution": [{ "command": "footprints hook post --from cursor" }],
+    "afterFileEdit": [{ "command": "footprints hook post --from cursor" }]
+  }
+}

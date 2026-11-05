@@ -24,11 +24,12 @@ impl Env {
     /// the working directory with symlinks resolved, matching the paths the ledger stores
     /// (on macOS the temp folder sits behind the /var to /private/var link)
     pub fn dir(&self) -> PathBuf {
-        self.work.path().canonicalize().unwrap()
+        footprints::platform::canonical(self.work.path()).unwrap()
     }
 
+    /// `rel` uses forward slashes; on Windows they become backslashes, as the ledger stores them
     pub fn path(&self, rel: &str) -> PathBuf {
-        self.dir().join(rel)
+        footprints::platform::normalise(&self.dir().join(rel))
     }
 
     pub fn cmd(&self) -> Command {
@@ -63,12 +64,12 @@ impl Env {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(input.as_bytes())
-            .unwrap();
+        // a hook may exit before reading all of its input, which is not a test failure
+        match child.stdin.take().unwrap().write_all(input.as_bytes()) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
+            Err(e) => panic!("writing the hook payload: {e}"),
+        }
         child.wait_with_output().unwrap()
     }
 

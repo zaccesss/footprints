@@ -1,0 +1,112 @@
+/* system colours keep the window readable in light, dark and increased contrast modes */
+:root {
+  color-scheme: light dark;
+  --text: CanvasText;
+  --bg: Canvas;
+  --muted: color-mix(in srgb, CanvasText 75%, Canvas);
+  --rule: color-mix(in srgb, CanvasText 35%, Canvas);
+  --accent: LinkText;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin: 0 0 0.25rem;
+}
+
+header,
+footer {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.75rem;
+}
+
+footer {
+  border-top: 1px solid var(--rule);
+  border-bottom: none;
+  padding-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.75rem 0;
+}
+
+.row p {
+  margin: 0.125rem 0;
+}
+
+.head {
+  font-weight: 600;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+}
+
+.target {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* a left rule is a second signal next to the written state */
+.state-can-be-undone {
+  border-left: 4px solid var(--accent);
+  padding-left: 0.5rem;
+}
+
+.state-not-reversible,
+.state-undone {
+  border-left: 4px dashed var(--rule);
+  padding-left: 0.5rem;
+}
+
+button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 1rem;
+  margin-top: 0.5rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 2px solid var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  border-style: dashed;
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

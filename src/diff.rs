@@ -33,7 +33,13 @@ pub fn diff(store: &Store, a: &Action) -> Result<String> {
     }
     let old = side(store, &a.pre_hash, a.pre_size)?;
     let new = side(store, &a.post_hash, a.post_size)?;
-    let path = a.target.trim_start_matches('/');
+    // git-style names use forward slashes, so a Windows path reads `a/C:/work/f.txt`
+    let path = if cfg!(windows) {
+        a.target.replace('\\', "/")
+    } else {
+        a.target.clone()
+    };
+    let path = path.trim_start_matches('/');
     let old_name = match old {
         Side::Absent => "/dev/null".to_string(),
         _ => format!("a/{path}"),
