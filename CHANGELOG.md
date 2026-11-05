@@ -8,6 +8,12 @@ All notable changes to Footprints are recorded here. The format follows
 
 ### Added
 
+- The menu bar app on Windows and Linux. It sits in the Windows notification area and in a Linux
+  panel through AppIndicator, with a colour tray icon that reads on light and dark taskbars and
+  panels. macOS keeps its template icon. Each release attaches the app as a universal macOS zip,
+  a Windows NSIS installer and a Linux `.deb` and AppImage, each with a `.sha256` file. They are
+  unsigned, so Gatekeeper and SmartScreen warn the first time. CI lints and tests the app on
+  macOS, Windows and Linux.
 - A screenshot of the menu bar app in the README and in the menu bar app guide.
 - A dark and a light banner and a dark social preview image in `assets/`, beside the light one.
 

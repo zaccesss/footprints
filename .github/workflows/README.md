@@ -5,8 +5,9 @@
 | [`ci.yml`](ci.yml), `check` job | Every pull request, every push to `main` and on demand | `cargo fmt --check`, `cargo clippy --all-targets -D warnings`, `cargo test` and `cargo build --release` on Ubuntu, macOS and Windows, then one end-to-end run of the release binary with [`scripts/e2e.sh`](../../scripts/e2e.sh) |
 | [`ci.yml`](ci.yml), `msrv` job | The same triggers | `cargo check --all-targets` on Rust 1.89, the `rust-version` in `Cargo.toml`, on Ubuntu only to keep it cheap |
 | [`ci.yml`](ci.yml), `build` job | The same triggers | A release build for each published target: macOS arm64 and x86_64, Linux x86_64 and aarch64 (musl) and Windows x86_64. Each binary is kept as a workflow artefact for seven days |
-| [`ci.yml`](ci.yml), `app` job | The same triggers | Clippy, tests and a release build of the menu bar app in [`app/`](../../app/README.md), on macOS only |
+| [`ci.yml`](ci.yml), `app` job | The same triggers | Clippy, tests and a release build of the menu bar app in [`app/`](../../app/README.md) on macOS, Windows and Ubuntu. The Ubuntu job installs WebKitGTK and libayatana-appindicator with apt first |
 | [`release.yml`](release.yml), `version`, `build`, `attach` and `publish` jobs | A pushed `v*` tag | Checks the tag against `Cargo.toml`, builds the same five targets, packages each with the docs, attaches the archives and their sha256 sums to the existing GitHub release for the tag with `gh release upload`, then publishes the crate to crates.io |
+| [`release.yml`](release.yml), `app` and `attach-app` jobs | The same tag, beside the command line builds | Builds the menu bar app with the Tauri CLI: a universal macOS `.app` in a zip, a Windows NSIS installer and a Linux `.deb` and AppImage built on Ubuntu 22.04. Each gets a sha256 file and all of them are attached to the release. The builds are unsigned. Nothing else waits for these jobs, so a failed app build never holds up crates.io, Homebrew or winget |
 | [`release.yml`](release.yml), `homebrew` job | The same tag, once the files are attached | Fills [`packaging/homebrew/footprints.rb`](../../packaging/homebrew/footprints.rb) from the release's `.sha256` files with [`packaging/fill-checksums.sh`](../../packaging/fill-checksums.sh) then writes it to `Formula/footprints.rb` on the main branch of `zaccesss/homebrew-tap` as a Zac Bot commit. Skipped with a note in the run summary when the `TAP_TOKEN` secret is missing. A failed update is a warning that never fails the run |
 | [`release.yml`](release.yml), `winget` job | The same tag, once the files are attached | Opens the pull request for the new version of `zaccesss.Footprints` in `microsoft/winget-pkgs` from the `zaccesss/winget-pkgs` fork with `vedantmgoyal9/winget-releaser`. Skipped with a note in the run summary when the `WINGET_TOKEN` secret is missing or the package is not in winget yet |
 
@@ -22,7 +23,8 @@ workflows is pinned to a commit.
 
 The release workflow never creates a GitHub release. The release is made by a maintainer from a
 signed tag. The workflow waits up to 10 minutes for it before attaching files. Its `attach`
-job is the only one with write access to contents, used only to attach those files. The
+and `attach-app` jobs are the only ones with write access to contents, used only to attach those
+files. The
 `homebrew` and `winget` jobs write to other repositories with their own tokens and only read
 this one.
 

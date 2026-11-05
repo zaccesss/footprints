@@ -6,7 +6,7 @@
   --muted: color-mix(in srgb, CanvasText 75%, Canvas);
   --rule: color-mix(in srgb, CanvasText 35%, Canvas);
   --accent: LinkText;
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Cantarell, Ubuntu, sans-serif;
 }
 
 body {
@@ -60,7 +60,7 @@ ol {
 }
 
 .target {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-family: ui-monospace, Menlo, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   overflow-wrap: anywhere;
 }
 

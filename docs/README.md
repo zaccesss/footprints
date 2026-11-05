@@ -13,7 +13,7 @@ The [README](../README.md) is the short version. These pages hold the detail.
 | [MCP server](mcp.md) | The three MCP tools, the protocol details and where each agent registers the server |
 | [OpenTelemetry export](export.md) | The span layout and attributes of `footprints export --otel` |
 | [Data and privacy](data-and-privacy.md) | What is stored, file permissions, settings, secrets in the blob store and pruning or restoring history |
-| [Menu bar app](menu-bar-app.md) | The macOS menu bar app in `app/`: building, running and its limits |
+| [Menu bar app](menu-bar-app.md) | The tray app in `app/` for macOS, Windows and Linux: installing, building, starting at login and its limits |
 
 ## Agents
 
