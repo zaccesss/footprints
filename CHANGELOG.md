@@ -6,6 +6,8 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-05
+
 ### Added
 
 - Windows support. The data directory defaults to `%LOCALAPPDATA%\footprints`. Paths with drive
@@ -92,5 +94,6 @@ All notable changes to Footprints are recorded here. The format follows
 - CI on Ubuntu and macOS running format, Clippy, tests and a release build, plus a check on the
   minimum supported Rust version, 1.89.
 
-[Unreleased]: https://github.com/zaccesss/footprints/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/zaccesss/footprints/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/zaccesss/footprints/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/zaccesss/footprints/releases/tag/v0.1.0
