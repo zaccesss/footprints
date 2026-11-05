@@ -11,6 +11,11 @@ All notable changes to Footprints are recorded here. The format follows
 - A screenshot of the menu bar app in the README and in the menu bar app guide.
 - A dark and a light banner and a dark social preview image in `assets/`, beside the light one.
 
+### Changed
+
+- The release workflow writes the Homebrew formula straight to the tap's main branch as a Zac Bot
+  commit instead of opening and merging a pull request.
+
 ## [0.3.0] - 2026-11-05
 
 ### Added
