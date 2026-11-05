@@ -1,4 +1,5 @@
-// the window talks to the app only through its two commands, today and undo
+// the window talks to the app only through its two commands, today and undo, plus the
+// "shown" event the app sends each time the tray brings the window back
 const invoke = window.__TAURI__.core.invoke;
 
 const list = document.getElementById("rows");
@@ -63,4 +64,7 @@ document.getElementById("refresh").addEventListener("click", load);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) load();
 });
+// WebView2 on Windows can keep a hidden window "visible", so the app's own event is the
+// signal that works on every platform
+window.__TAURI__.event.listen("shown", load);
 load();

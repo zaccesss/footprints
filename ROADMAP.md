@@ -14,15 +14,18 @@ What Footprints does today, what comes next and what is deliberately left for la
 | Platforms | macOS, Linux and Windows, all three tested in CI with a real end-to-end run |
 | Interfaces | The CLI, an MCP server with no force option and OpenTelemetry GenAI export |
 | Pruning | `footprints prune` by age, date, session, agent or a size budget, with a dry run by default, an archive in the Trash and `footprints import` to restore it. Not offered over MCP |
-| Menu bar app | A minimal Tauri app in [`app/`](app/README.md) with today's changes and an undo button. Built in CI on macOS, unsigned |
+| Menu bar app | A minimal Tauri app in [`app/`](app/README.md) with today's changes and an undo button. Since 0.4.0 it runs on macOS, Windows and Linux, is tested in CI on all three and ships unsigned with each release as a macOS zip, a Windows installer, a `.deb` and an AppImage |
 | Release | A release workflow that builds binaries for macOS (arm64 and x86_64), Linux (x86_64 and aarch64) and Windows (x86_64) with sha256 sums, attaches them to the release and publishes to crates.io. It first ran for v0.2.0. The same workflow fills the Homebrew formula in `zaccesss/homebrew-tap` from those sums and opens the winget pull request for each new version |
 
 ## Next
 
 - An automatic size budget. `footprints prune --max-size` applies one when it is run, but
   nothing runs it on a schedule yet, so the data directory grows until it is pruned.
-- A signed and notarised menu bar app. Signing needs an Apple Developer account, which the
-  project does not have yet.
+- A signed and notarised menu bar app. Signing needs an Apple Developer account and a Windows
+  code signing certificate, which the project does not have yet.
+- The menu bar app on GTK 4 for Linux, once Tauri's Linux backend moves to it. That drops the
+  unmaintained GTK 3 bindings and the glib 0.18 advisory described in the
+  [menu bar app guide](docs/menu-bar-app.md#linux-and-gtk-3).
 - `footprints install <agent>` that writes the hook block into an agent's settings after showing
   the change and asking. Today every install command only prints.
 - The winget package `zaccesss.Footprints`. Its manifests are in

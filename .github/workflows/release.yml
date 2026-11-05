@@ -1,6 +1,8 @@
 # builds a binary for each platform when a version tag is pushed, attaches it with its sha256
 # sum to the GitHub release for that tag, then publishes the crate to crates.io, bumps the
-# Homebrew formula in zaccesss/homebrew-tap and opens the winget pull request. The release
+# Homebrew formula in zaccesss/homebrew-tap and opens the winget pull request. The menu bar app
+# is built and attached beside them by its own jobs, so a slow or failed app build never holds
+# up the command line release. The release
 # itself is made by a maintainer from a signed tag, so this workflow waits for it and never
 # creates one.
 #
@@ -151,6 +153,140 @@ jobs:
         run: |
           ls -l dist
           test "$(find dist -name '*.sha256' | wc -l)" -eq 5
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+
+  # the menu bar app for each platform, unsigned. These jobs run beside the command line builds
+  # and nothing else waits for them
+  app:
+    name: Menu bar app (${{ matrix.platform }})
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            os: macos-latest
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --bundles app --target universal-apple-darwin
+          - platform: windows
+            os: windows-latest
+            rust-targets: x86_64-pc-windows-msvc
+            args: --bundles nsis
+          # the oldest supported runner, so the AppImage and the .deb ask for no newer glibc
+          # and WebKitGTK than the distributions people still run
+          - platform: linux
+            os: ubuntu-22.04
+            rust-targets: x86_64-unknown-linux-gnu
+            args: --bundles deb,appimage
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the Linux libraries Tauri needs
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev patchelf file
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust-targets }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: app/src-tauri
+          key: app-${{ matrix.platform }}
+      - name: Build the app bundles
+        shell: bash
+        working-directory: app/src-tauri
+        env:
+          ARGS: ${{ matrix.args }}
+          # linuxdeploy's own strip cannot read the newer sections in a current binary. The release
+          # profile strips it already. The AppImage tools run without FUSE this way
+          NO_STRIP: "true"
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        # the Tauri command line tool at an exact version, from its prebuilt npm package, which
+        # takes seconds where cargo install takes minutes. --locked reaches cargo after the --
+        run: |
+          read -ra args <<< "$ARGS"
+          npx --yes @tauri-apps/cli@2.11.5 build --ci "${args[@]}" -- --locked
+      - name: Package the bundles with their sums
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="footprints-app-$TAG"
+          mkdir -p dist
+          case "$PLATFORM" in
+            macos)
+              # ditto keeps the bundle's symlinks and extended attributes, which zip does not
+              ditto -c -k --keepParent \
+                app/src-tauri/target/universal-apple-darwin/release/bundle/macos/Footprints.app \
+                "dist/$name-macos-universal.zip" ;;
+            windows)
+              cp app/src-tauri/target/release/bundle/nsis/*-setup.exe "dist/$name-windows-x86_64-setup.exe" ;;
+            linux)
+              cp app/src-tauri/target/release/bundle/deb/*.deb "dist/$name-linux-x86_64.deb"
+              cp app/src-tauri/target/release/bundle/appimage/*.AppImage "dist/$name-linux-x86_64.AppImage" ;;
+          esac
+          cd dist
+          for asset in *; do
+            if command -v sha256sum > /dev/null; then
+              sha256sum "$asset" > "$asset.sha256"
+            else
+              shasum -a 256 "$asset" > "$asset.sha256"
+            fi
+            cat "$asset.sha256"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          # a name outside the release-* pattern, so the command line attach job never sees it
+          name: app-${{ matrix.platform }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  attach-app:
+    name: Attach the menu bar app to the release
+    needs: app
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # only to attach the app bundles to the release of this tag
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: app-*
+          path: dist
+          merge-multiple: true
+      - name: Wait for the release of this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          for attempt in $(seq 1 20); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              exit 0
+            fi
+            echo "No release for $TAG yet (attempt $attempt of 20). Waiting 30 seconds."
+            sleep 30
+          done
+          echo "No release named $TAG exists after 10 minutes. Create it from the tag, then rerun this job."
+          exit 1
+      - name: Attach the bundles and their sums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ls -l dist
+          # a macOS zip, a Windows installer, a .deb and an AppImage
+          test "$(find dist -name '*.sha256' | wc -l)" -eq 4
           gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
 
   # publishes the crate to crates.io through Trusted Publishing: the job proves its identity to

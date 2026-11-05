@@ -58,7 +58,14 @@ shade and contrast.
 - The result of an undo, a conflict included, is announced through a polite live region.
 - Nothing in the window animates. Motion is turned off under `prefers-reduced-motion` in case a
   later change adds any.
-- The menu bar icon is a template image, so macOS draws it in the menu bar's own colour.
+- The menu bar icon is a template image, so macOS draws it in the menu bar's own colour. Windows
+  and Linux draw a tray icon as it is, so there the mark has dark steps and an accent ring
+  inside a light halo. The steps read on a light taskbar or panel and the halo on a dark one.
+- On Windows the icon's tooltip, "Footprints", is the name Narrator reads for it. On Linux,
+  AppIndicator gives the icon no name of its own, so a screen reader announces the menu items
+  "Show today's changes" and "Quit Footprints".
+- Every control in the window is a real button reached with `Tab` and pressed with `Space` or
+  `Enter`, on all three platforms.
 
 ## The mark
 

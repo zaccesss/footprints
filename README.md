@@ -78,7 +78,9 @@ flowchart LR
 | Linux (x86_64 and aarch64) | Reflinks on Btrfs, XFS and bcachefs, plain copies elsewhere. inotify, with optional fanotify |
 | Windows (x86_64) | Plain copies. ReadDirectoryChangesW, with an optional USN journal reader. Read-only attributes are not restored |
 
-CI tests all three with a real end-to-end run. The menu bar app is macOS only and unsigned.
+CI tests all three with a real end-to-end run. The menu bar app runs on all three too, in the
+macOS menu bar, the Windows notification area and a Linux panel through AppIndicator. Its release
+builds are unsigned.
 
 <img src="assets/demo/menu-bar-app.png" width="450" height="451" alt="The Footprints menu bar window listing today's changes: a file delete, the command that made it and a file create, each with its state and an Undo button where it can be undone.">
 
