@@ -30,11 +30,10 @@ The tap is `zaccesss/homebrew-tap`, which Homebrew reads as `zaccesss/tap`. The 
 the release archive for the platform rather than building from source, so it needs the SHA-256 of
 each of the four Unix archives.
 
-The release workflow's `homebrew` job updates the tap itself. It never pushes to the tap's
-`main`, which a pull request rule protects. It opens a branch `footprints-X.Y.Z` with a Zac Bot
-commit, then a pull request titled `feat: Footprints X.Y.Z`, which it squash-merges. Its
-`TAP_TOKEN` is a fine-grained token from the account that owns the tap, limited to
-`zaccesss/homebrew-tap` with Contents and Pull requests read and write. When the job is skipped
+The release workflow's `homebrew` job updates the tap itself. It writes the formula to the tap's
+`main` as a Zac Bot commit, which the tap's ruleset allows for the admin role, so no pull request
+counts on the maintainer's profile. Its `TAP_TOKEN` is a fine-grained token from the account that
+owns the tap, limited to `zaccesss/homebrew-tap` with Contents read and write. When the job is skipped
 or warns that the update failed, update the tap by hand the same way:
 
 1. Fill the formula from the release files:
@@ -52,8 +51,7 @@ or warns that the update failed, update the tap by hand the same way:
    brew style ./Formula/footprints.rb
    ```
 
-3. Commit it on a branch named `footprints-X.Y.Z`, open a pull request titled
-   `feat: Footprints X.Y.Z` and squash-merge it.
+3. Commit it to the tap's `main` as `feat: Footprints X.Y.Z`.
 
 ## winget
 

@@ -7,7 +7,7 @@
 | [`ci.yml`](ci.yml), `build` job | The same triggers | A release build for each published target: macOS arm64 and x86_64, Linux x86_64 and aarch64 (musl) and Windows x86_64. Each binary is kept as a workflow artefact for seven days |
 | [`ci.yml`](ci.yml), `app` job | The same triggers | Clippy, tests and a release build of the menu bar app in [`app/`](../../app/README.md), on macOS only |
 | [`release.yml`](release.yml), `version`, `build`, `attach` and `publish` jobs | A pushed `v*` tag | Checks the tag against `Cargo.toml`, builds the same five targets, packages each with the docs, attaches the archives and their sha256 sums to the existing GitHub release for the tag with `gh release upload`, then publishes the crate to crates.io |
-| [`release.yml`](release.yml), `homebrew` job | The same tag, once the files are attached | Fills [`packaging/homebrew/footprints.rb`](../../packaging/homebrew/footprints.rb) from the release's `.sha256` files with [`packaging/fill-checksums.sh`](../../packaging/fill-checksums.sh) then writes it to `Formula/footprints.rb` in `zaccesss/homebrew-tap` through a Zac Bot commit on a branch and a squash-merged pull request. Skipped with a note in the run summary when the `TAP_TOKEN` secret is missing. A failed update is a warning that never fails the run |
+| [`release.yml`](release.yml), `homebrew` job | The same tag, once the files are attached | Fills [`packaging/homebrew/footprints.rb`](../../packaging/homebrew/footprints.rb) from the release's `.sha256` files with [`packaging/fill-checksums.sh`](../../packaging/fill-checksums.sh) then writes it to `Formula/footprints.rb` on the main branch of `zaccesss/homebrew-tap` as a Zac Bot commit. Skipped with a note in the run summary when the `TAP_TOKEN` secret is missing. A failed update is a warning that never fails the run |
 | [`release.yml`](release.yml), `winget` job | The same tag, once the files are attached | Opens the pull request for the new version of `zaccesss.Footprints` in `microsoft/winget-pkgs` from the `zaccesss/winget-pkgs` fork with `vedantmgoyal9/winget-releaser`. Skipped with a note in the run summary when the `WINGET_TOKEN` secret is missing or the package is not in winget yet |
 
 All three operating systems run because the capture code differs between them. macOS clones files
@@ -41,22 +41,17 @@ run. A `winget` secret that is present but wrong fails that job, so the problem 
 
 | Secret | Kind | Scope | Used by |
 | --- | --- | --- | --- |
-| `TAP_TOKEN` | Fine-grained personal access token from the account that owns the tap | Only `zaccesss/homebrew-tap`, with Contents read and write plus Pull requests read and write | `homebrew` |
+| `TAP_TOKEN` | Fine-grained personal access token from the account that owns the tap | Only `zaccesss/homebrew-tap`, with Contents read and write | `homebrew` |
 | `WINGET_TOKEN` | Classic personal access token | `public_repo` | `winget` |
 
 The `homebrew` job copies `packaging/` to a temporary folder and moves the copy to the tag's
 version first, so the formula template does not have to be bumped by hand before a release.
-`zaccesss/homebrew-tap` protects `main` with a pull request rule, so the job never pushes there.
-Through the GitHub API alone it:
+`zaccesss/homebrew-tap` belongs to the maintainer, so a pull request opened with their token would
+count on their profile. The job writes to `main` instead, which the tap's ruleset allows for the
+admin role. Through the GitHub API alone it:
 
 1. Stops early when `Formula/footprints.rb` in the tap already matches the filled formula.
-2. Creates the branch `footprints-X.Y.Z` from the tap's `main`, after deleting one left by an
-   earlier failed run.
-3. Writes `Formula/footprints.rb` on that branch as a commit by
-   `Zac Bot <automation@isaacadjei.me>`.
-4. Opens a pull request titled `feat: Footprints X.Y.Z` and squash-merges it. GitHub can turn
-   away a merge while it still checks a new pull request, so the merge is tried up to six times
-   ten seconds apart.
+2. Writes `Formula/footprints.rb` on `main` as a commit by `Zac Bot <automation@isaacadjei.me>`.
 
 The `winget` job uses
 [winget-releaser](https://github.com/vedantmgoyal9/winget-releaser), pinned to a commit. It runs

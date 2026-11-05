@@ -201,9 +201,8 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   # bumps the formula in zaccesss/homebrew-tap to this release. The tap's formula installs the
-  # release archives, so this waits for attach. The tap protects main with a pull request rule,
-  # so the formula goes in through a branch and a squash-merged pull request made with the API,
-  # never a direct push. Without the TAP_TOKEN secret the job only writes a note in the run
+  # release archives, so this waits for attach. The formula is written to the tap's main branch
+  # with the API as a Zac Bot commit. Without the TAP_TOKEN secret the job only writes a note in the run
   # summary. A tap that could not be updated is reported without failing the run.
   homebrew:
     name: Update the Homebrew tap
@@ -264,7 +263,6 @@ jobs:
           version="${TAG#v}"
           tap=zaccesss/homebrew-tap
           path=Formula/footprints.rb
-          branch="footprints-$version"
           title="feat: Footprints $version"
 
           # a rerun after the formula landed has nothing to send; git and the contents API name a
@@ -275,39 +273,20 @@ jobs:
             exit 0
           fi
 
-          # a branch left by an earlier failed run is started again from main
-          gh api -X DELETE "repos/$tap/git/refs/heads/$branch" > /dev/null 2>&1 || true
-          main="$(gh api "repos/$tap/git/ref/heads/main" --jq .object.sha)"
-          gh api -X POST "repos/$tap/git/refs" -f ref="refs/heads/$branch" -f sha="$main" > /dev/null
-
+          # the tap belongs to the maintainer, so the formula is written straight to main as Zac Bot:
+          # a pull request opened with the maintainer's token would count on their profile. The
+          # tap's ruleset lets the admin role push to main
           args=(-X PUT "repos/$tap/contents/$path"
             -f message="$title"
             -f content="$(base64 -w 0 "$FORMULA")"
-            -f branch="$branch"
+            -f branch=main
             -f "author[name]=Zac Bot" -f "author[email]=automation@isaacadjei.me"
             -f "committer[name]=Zac Bot" -f "committer[email]=automation@isaacadjei.me")
           if [ -n "$current" ]; then
             args+=(-f sha="$current")
           fi
           gh api "${args[@]}" > /dev/null
-
-          number="$(gh api -X POST "repos/$tap/pulls" \
-            -f title="$title" -f head="$branch" -f base=main \
-            -f body="Updates the footprints formula to $version with the checksums of the files attached to https://github.com/zaccesss/footprints/releases/tag/$TAG." \
-            --jq .number)"
-
-          # GitHub works out whether a new pull request can merge in the background, so the first
-          # attempt can be turned away
-          for attempt in 1 2 3 4 5 6; do
-            if gh api -X PUT "repos/$tap/pulls/$number/merge" -f merge_method=squash -f commit_title="$title (#$number)" > /dev/null; then
-              echo "Merged https://github.com/$tap/pull/$number, so \`brew upgrade footprints\` now installs $version." >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            echo "The pull request could not merge yet (attempt $attempt of 6). Waiting 10 seconds."
-            sleep 10
-          done
-          echo "Opened https://github.com/$tap/pull/$number but could not merge it." >> "$GITHUB_STEP_SUMMARY"
-          exit 1
+          echo "Updated $path on the tap's main branch, so \`brew upgrade footprints\` now installs $version." >> "$GITHUB_STEP_SUMMARY"
       # the files are already attached, so a tap that could not be updated is reported but never
       # fails the run
       - name: Report a tap update that failed
