@@ -18,14 +18,10 @@ Footprints is a local ledger of what AI coding agents do: every file they write,
 delete, every shell command they run and every network call their tools report. Each file change
 keeps a copy of the file before and after, so any one step can be shown as a diff and undone.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/demo/demo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/demo/demo-light.svg">
-  <img src="assets/demo/demo-light.svg" width="1002" height="692" alt="A terminal running Footprints in a folder called demo. A script standing in for an agent runs under footprints run: it turns auto_save on in config.toml and creates NOTES.md. footprints log lists the command and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true. footprints undo 3 restores config.toml and the final log marks that change as undone, with the undo recorded as its own reversible entry.">
-</picture>
+<img src="assets/demo/demo.png" width="780" height="495" alt="A real terminal running Footprints in a folder called demo. cat agent.sh shows a script standing in for an agent: it turns auto_save on in config.toml and creates NOTES.md. footprints run records the command with its two file changes. footprints log lists the command as not reversible and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true, with minus and plus markers so colour is never the only signal. footprints undo 3 restores config.toml and records the undo as entry 4.">
 
-The run above is real output, recorded by [`scripts/demo-capture.sh`](scripts/demo-capture.sh).
-The same transcript as text is in [`assets/demo/demo.txt`](assets/demo/demo.txt).
+The screenshot is a real run in a real terminal. The same transcript as text is in
+[`assets/demo/demo.txt`](assets/demo/demo.txt).
 
 ## Why it exists
 
@@ -42,6 +38,9 @@ and reversed without losing the good ones around it.
 - **The agent can check itself.** An MCP server lets an agent read its own ledger and undo its
   own mistakes, with no force option.
 - **Local only.** Everything stays on the machine in a private SQLite ledger and blob store.
+- **Prune without losing anything by accident.** `footprints prune` removes old history by age,
+  session, agent or a size budget. It shows what would go first, keeps every file copy still in
+  use and moves the rest to the Trash as an archive that `footprints import` restores.
 - **Exportable.** OpenTelemetry GenAI spans for Jaeger, Langfuse or any OTLP tool.
 
 ```mermaid
@@ -91,7 +90,7 @@ CI tests all three with a real end-to-end run. The menu bar app is macOS only an
 | --- | --- |
 | Cargo (Rust 1.89 or later) | `cargo install footprints` |
 | Homebrew on macOS and Linux | `brew install zaccesss/tap/footprints` |
-| winget on Windows | `winget install IsaacAdjei.Footprints`, once the package is accepted. Its first submission is [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471489) |
+| winget on Windows | `winget install zaccesss.Footprints`, once the package is accepted. Its first submission is [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542) |
 | Release binaries with sha256 sums | From the [GitHub releases](https://github.com/zaccesss/footprints/releases) |
 | From source | `git clone https://github.com/zaccesss/footprints && cargo install --path footprints` |
 
@@ -146,7 +145,9 @@ table.
 
 Everything stays on the machine and nothing is sent anywhere. The ledger and blob store live in
 `~/.local/share/footprints` (`%LOCALAPPDATA%\footprints` on Windows) and are private to the user
-account. The blob store keeps copies of every file an agent touched, secrets included.
+account. The blob store keeps copies of every file an agent touched, secrets included. Old
+history is removed with `footprints prune`, which sends an archive to the Trash rather than
+deleting it outright and is never offered to agents over MCP.
 [Data and privacy](docs/data-and-privacy.md) has the details.
 
 ## Documentation

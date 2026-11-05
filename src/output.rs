@@ -4,14 +4,20 @@
 use crate::store::{Action, Kind, Status};
 use std::io::IsTerminal;
 
-/// colour is used only on a terminal, never when `NO_COLOR` is set to anything (see
-/// https://no-color.org) and never for `TERM=dumb`.
+/// colour is used only on a terminal or when `CLICOLOR_FORCE` asks for it, never when
+/// `NO_COLOR` is set to anything (see https://no-color.org) and never for `TERM=dumb` unless
+/// forced.
 pub fn use_colour(disabled_by_flag: bool) -> bool {
     if disabled_by_flag {
         return false;
     }
     if std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
         return false;
+    }
+    // CLICOLOR_FORCE (see https://bixense.com/clicolors) asks for colour through a pipe, which
+    // is how a recording such as the README demo captures it; NO_COLOR above still wins
+    if std::env::var_os("CLICOLOR_FORCE").is_some_and(|v| !v.is_empty() && v != "0") {
+        return true;
     }
     if std::env::var("TERM").is_ok_and(|t| t == "dumb") {
         return false;

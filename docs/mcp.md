@@ -20,6 +20,9 @@ An agent can never force an undo through MCP, so it can never overwrite newer wo
 that would conflict is refused exactly as `footprints undo` refuses it without `--force`.
 Commands and network calls cannot be undone here either.
 
+Nothing that removes history is offered here. `footprints prune` and `footprints import` run
+only from a terminal, so an agent can never erase or rewrite its own trail.
+
 ## Protocol
 
 - Transport: stdio, one JSON-RPC message per line.

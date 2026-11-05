@@ -12,7 +12,7 @@ The [README](../README.md) is the short version. These pages hold the detail.
 | [Commands](commands.md) | Every subcommand, flag, exit status and environment variable, from the real `--help` output |
 | [MCP server](mcp.md) | The three MCP tools, the protocol details and where each agent registers the server |
 | [OpenTelemetry export](export.md) | The span layout and attributes of `footprints export --otel` |
-| [Data and privacy](data-and-privacy.md) | What is stored, file permissions, settings and secrets in the blob store |
+| [Data and privacy](data-and-privacy.md) | What is stored, file permissions, settings, secrets in the blob store and pruning or restoring history |
 | [Menu bar app](menu-bar-app.md) | The macOS menu bar app in `app/`: building, running and its limits |
 
 ## Agents

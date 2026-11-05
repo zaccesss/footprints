@@ -13,20 +13,21 @@ What Footprints does today, what comes next and what is deliberately left for la
 | Daemon | `footprints daemon`, an opt-in recorder for changes made by any process under a list of roots. FSEvents on macOS, inotify on Linux with optional fanotify, ReadDirectoryChangesW on Windows with an optional USN journal reader |
 | Platforms | macOS, Linux and Windows, all three tested in CI with a real end-to-end run |
 | Interfaces | The CLI, an MCP server with no force option and OpenTelemetry GenAI export |
+| Pruning | `footprints prune` by age, date, session, agent or a size budget, with a dry run by default, an archive in the Trash and `footprints import` to restore it. Not offered over MCP |
 | Menu bar app | A minimal Tauri app in [`app/`](app/README.md) with today's changes and an undo button. Built in CI on macOS, unsigned |
 | Release | A release workflow that builds binaries for macOS (arm64 and x86_64), Linux (x86_64 and aarch64) and Windows (x86_64) with sha256 sums, attaches them to the release and publishes to crates.io. It first ran for v0.2.0. The same workflow fills the Homebrew formula in `zaccesss/homebrew-tap` from those sums and opens the winget pull request for each new version |
 
 ## Next
 
-- Pruning and a size budget for the blob store. Nothing is ever deleted today, so the data
-  directory only grows.
+- An automatic size budget. `footprints prune --max-size` applies one when it is run, but
+  nothing runs it on a schedule yet, so the data directory grows until it is pruned.
 - A signed and notarised menu bar app. Signing needs an Apple Developer account, which the
   project does not have yet.
 - `footprints install <agent>` that writes the hook block into an agent's settings after showing
   the change and asking. Today every install command only prints.
-- The winget package `IsaacAdjei.Footprints`. Its manifests are in
+- The winget package `zaccesss.Footprints`. Its manifests are in
   [`packaging/winget/`](packaging/winget) and the first version is
-  [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471489).
+  [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542).
   Later versions are submitted by the release workflow once it is accepted.
 - Restoring the Windows read-only attribute on undo. Unix modes are restored, but Windows
   attributes are not recorded yet.

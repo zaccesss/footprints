@@ -52,17 +52,15 @@ binary for the machine's platform and runs `footprints --version` with a throwaw
 ### winget on Windows
 
 ```powershell
-winget install IsaacAdjei.Footprints
+winget install zaccesss.Footprints
 ```
 
 > [!NOTE]
-> The package `IsaacAdjei.Footprints` is pending review in the winget repository
-> ([microsoft/winget-pkgs pull request 471489](https://github.com/microsoft/winget-pkgs/pull/471489)).
-> The command works once that pull request is accepted. Until then, use Cargo or the release
-> binaries below.
+> The package `zaccesss.Footprints` is [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542). The command
+> works once it is accepted. Until then, use Cargo or the release binaries below.
 
 It installs the Windows zip from the GitHub release as a portable program with the command
-`footprints`. Upgrade with `winget upgrade IsaacAdjei.Footprints`.
+`footprints`. Upgrade with `winget upgrade zaccesss.Footprints`.
 
 ### Release binaries
 
@@ -187,19 +185,10 @@ Here a script edits a setting in `config.toml` and creates `NOTES.md`. The log s
 changes, the diff shows the edited line and the undo puts the old setting back. The final log
 marks the change as undone and lists the undo as its own entry.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../assets/demo/demo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="../assets/demo/demo-light.svg">
-  <img src="../assets/demo/demo-light.svg" width="1002" height="692" alt="A terminal running Footprints in a folder called demo. A script standing in for an agent runs under footprints run: it turns auto_save on in config.toml and creates NOTES.md. footprints log lists the command and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true. footprints undo 3 restores config.toml and the final log marks that change as undone, with the undo recorded as its own reversible entry.">
-</picture>
+<img src="../assets/demo/demo.png" width="780" height="495" alt="A real terminal running Footprints in a folder called demo. cat agent.sh shows a script standing in for an agent: it turns auto_save on in config.toml and creates NOTES.md. footprints run records the command with its two file changes. footprints log lists the command as not reversible and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true, with minus and plus markers so colour is never the only signal. footprints undo 3 restores config.toml and records the undo as entry 4.">
 
-The image is drawn from a real run. The same output as text is in
-[`assets/demo/demo.txt`](../assets/demo/demo.txt). To record it again with the installed binary:
-
-```sh
-scripts/demo-capture.sh "$(command -v footprints)" > assets/demo/demo.txt
-scripts/demo-svg.py assets/demo/demo.txt assets/demo/demo
-```
+The screenshot is a real run in a real terminal. The same output as text is in
+[`assets/demo/demo.txt`](../assets/demo/demo.txt).
 
 ## Connect an agent
 
@@ -243,8 +232,9 @@ cargo uninstall footprints
 brew uninstall footprints
 ```
 
-On Windows, a winget install is removed with `winget uninstall IsaacAdjei.Footprints`.
+On Windows, a winget install is removed with `winget uninstall zaccesss.Footprints`.
 
 Then remove the hook blocks from each agent's settings, as each [agent guide](agents/README.md)
-describes. Deleting the data directory removes the whole history, including every stored copy of
-every file. Nothing else is installed: Footprints starts no service and edits no settings itself.
+describes. Moving the data directory to the Trash removes the whole history, including every
+stored copy of every file, as [removing everything](data-and-privacy.md#removing-everything)
+describes. `footprints prune` removes only older history. Nothing else is installed: Footprints starts no service and edits no settings itself.

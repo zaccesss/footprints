@@ -57,9 +57,9 @@ or warns that the update failed, update the tap by hand the same way:
 
 ## winget
 
-The package is `IsaacAdjei.Footprints`. The installer is the Windows zip from the release,
+The package is `zaccesss.Footprints`. The installer is the Windows zip from the release,
 installed as a portable program with the command alias `footprints`. The first version is
-[pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471489).
+[pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471542).
 Once it is accepted, the release workflow submits every later version itself.
 
 1. Fill the manifests from the release files:
@@ -70,12 +70,12 @@ Once it is accepted, the release workflow submits every later version itself.
 
 2. Copy the three files from `/tmp/packaging-X.Y.Z/winget/` into a fork of
    [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) under
-   `manifests/i/IsaacAdjei/Footprints/X.Y.Z/`.
+   `manifests/z/zaccesss/Footprints/X.Y.Z/`.
 3. Validate and test them on a Windows machine:
 
    ```powershell
-   winget validate --manifest manifests\i\IsaacAdjei\Footprints\X.Y.Z
-   winget install --manifest manifests\i\IsaacAdjei\Footprints\X.Y.Z
+   winget validate --manifest manifests\z\zaccesss\Footprints\X.Y.Z
+   winget install --manifest manifests\z\zaccesss\Footprints\X.Y.Z
    footprints --version
    ```
 

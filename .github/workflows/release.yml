@@ -320,7 +320,7 @@ jobs:
 
   # opens the pull request for this version in microsoft/winget-pkgs from the maintainer's fork
   # (zaccesss/winget-pkgs), through winget-releaser, which runs Komac. Komac updates the
-  # previous version's manifests, so it only works once a first version of IsaacAdjei.Footprints
+  # previous version's manifests, so it only works once a first version of zaccesss.Footprints
   # has been accepted; until then the job checks for the package and skips with a note.
   # WINGET_TOKEN is a classic token for the maintainer's account with the public_repo scope.
   winget:
@@ -342,8 +342,8 @@ jobs:
             echo "submit=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if ! gh api repos/microsoft/winget-pkgs/contents/manifests/i/IsaacAdjei/Footprints > /dev/null 2>&1; then
-            echo "IsaacAdjei.Footprints is not in microsoft/winget-pkgs yet, so no update was submitted. The first version is submitted by hand." >> "$GITHUB_STEP_SUMMARY"
+          if ! gh api repos/microsoft/winget-pkgs/contents/manifests/z/zaccesss/Footprints > /dev/null 2>&1; then
+            echo "zaccesss.Footprints is not in microsoft/winget-pkgs yet, so no update was submitted. The first version is submitted by hand." >> "$GITHUB_STEP_SUMMARY"
             echo "submit=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -354,7 +354,7 @@ jobs:
         # a winget problem is reported, never a failed release
         continue-on-error: true
         with:
-          identifier: IsaacAdjei.Footprints
+          identifier: zaccesss.Footprints
           installers-regex: 'x86_64-pc-windows-msvc\.zip$'
           release-tag: ${{ github.ref_name }}
           release-notes-url: https://github.com/zaccesss/footprints/releases/tag/${{ github.ref_name }}

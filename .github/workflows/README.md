@@ -8,7 +8,7 @@
 | [`ci.yml`](ci.yml), `app` job | The same triggers | Clippy, tests and a release build of the menu bar app in [`app/`](../../app/README.md), on macOS only |
 | [`release.yml`](release.yml), `version`, `build`, `attach` and `publish` jobs | A pushed `v*` tag | Checks the tag against `Cargo.toml`, builds the same five targets, packages each with the docs, attaches the archives and their sha256 sums to the existing GitHub release for the tag with `gh release upload`, then publishes the crate to crates.io |
 | [`release.yml`](release.yml), `homebrew` job | The same tag, once the files are attached | Fills [`packaging/homebrew/footprints.rb`](../../packaging/homebrew/footprints.rb) from the release's `.sha256` files with [`packaging/fill-checksums.sh`](../../packaging/fill-checksums.sh) then writes it to `Formula/footprints.rb` in `zaccesss/homebrew-tap` through a Zac Bot commit on a branch and a squash-merged pull request. Skipped with a note in the run summary when the `TAP_TOKEN` secret is missing. A failed update is a warning that never fails the run |
-| [`release.yml`](release.yml), `winget` job | The same tag, once the files are attached | Opens the pull request for the new version of `IsaacAdjei.Footprints` in `microsoft/winget-pkgs` from the `zaccesss/winget-pkgs` fork with `vedantmgoyal9/winget-releaser`. Skipped with a note in the run summary when the `WINGET_TOKEN` secret is missing or the package is not in winget yet |
+| [`release.yml`](release.yml), `winget` job | The same tag, once the files are attached | Opens the pull request for the new version of `zaccesss.Footprints` in `microsoft/winget-pkgs` from the `zaccesss/winget-pkgs` fork with `vedantmgoyal9/winget-releaser`. Skipped with a note in the run summary when the `WINGET_TOKEN` secret is missing or the package is not in winget yet |
 
 All three operating systems run because the capture code differs between them. macOS clones files
 with APFS `clonefile` and watches with FSEvents. Linux reflinks or copies files and watches with
@@ -61,7 +61,7 @@ Through the GitHub API alone it:
 The `winget` job uses
 [winget-releaser](https://github.com/vedantmgoyal9/winget-releaser), pinned to a commit. It runs
 [Komac](https://github.com/russellbanks/Komac), which reads the newest accepted manifests of
-`IsaacAdjei.Footprints`, swaps in the new zip and its sum, then opens the pull request from the
+`zaccesss.Footprints`, swaps in the new zip and its sum, then opens the pull request from the
 `zaccesss/winget-pkgs` fork. Komac can only update a package that already exists. The first
 version was submitted by hand, so until that pull request is accepted the job finds no package
 and skips. The winget maintainers review every pull request, which usually takes a day or two.

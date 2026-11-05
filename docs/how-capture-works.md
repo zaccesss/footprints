@@ -218,7 +218,11 @@ Everything lands in the data directory described in [data and privacy](data-and-
 - `blobs/` keeps each file image once under its BLAKE3 hash, compressed with zstd, so identical
   contents across actions take the space of one copy.
 - `staging/` holds the wrapper's clones while a run is in progress.
-- `locks/` holds the claim each running wrapper has on its directory.
+- `locks/` holds the claim each running wrapper has on its directory and `ledger.lock`, held
+  shared by every process with the ledger open and exclusively by `footprints prune --yes`.
+
+The ledger grows until it is pruned. [Removing data](data-and-privacy.md#removing-data) has
+`footprints prune`, its archives and `footprints import`.
 
 Action kinds are `file_write`, `file_create`, `file_delete`, `command` and `network`. States
 shown by `footprints log` are `reversible`, `not reversible`, `pending` and `undone`.

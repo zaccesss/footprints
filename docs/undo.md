@@ -157,8 +157,10 @@ same automatically before it starts.
   They are recorded as not reversible, so an undo never deletes them.
 - A Bash call with `run_in_background` is only partly captured. Its post hook fires once the
   command has started, so only changes made by then are recorded. The command's note says so.
-- There is no pruning command yet. Every pre-image stays in the blob store until the data
-  directory is deleted. Pruning is [next on the roadmap](../ROADMAP.md#next).
+- A pruned action cannot be undone until its archive is restored with `footprints import`. An
+  action that stays keeps every stored copy it needs, so pruning never stops it being undone.
+  Links to a pruned action, such as `undone by #12`, keep its number. See
+  [removing data](data-and-privacy.md#removing-data).
 
 ## Windows
 
