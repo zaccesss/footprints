@@ -1,6 +1,6 @@
 # Commands
 
-Every subcommand and flag of `footprints` 0.2.0, taken from its own `--help` output.
+Every subcommand and flag of `footprints` 0.3.0, taken from its own `--help` output.
 `footprints help <command>` or `footprints <command> --help` prints the same text in a terminal.
 
 ## Contents
@@ -230,9 +230,6 @@ Every `footprints run` also does this when it starts. See
 [recovering a killed run](undo.md#recovering-a-killed-run).
 
 ## prune
-
-> [!NOTE]
-> `prune` and `import` are new since 0.2.0 and ship in the next release.
 
 ```console
 $ footprints prune --help

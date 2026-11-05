@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
-# winget default locale manifest for Footprints 0.2.0.
+# winget default locale manifest for Footprints 0.3.0.
 PackageIdentifier: zaccesss.Footprints
-PackageVersion: 0.2.0
+PackageVersion: 0.3.0
 PackageLocale: en-US
 Publisher: zaccesss
 PublisherUrl: https://github.com/zaccesss
@@ -20,6 +20,6 @@ Tags:
   - undo
   - audit
   - cli
-ReleaseNotesUrl: https://github.com/zaccesss/footprints/releases/tag/v0.2.0
+ReleaseNotesUrl: https://github.com/zaccesss/footprints/releases/tag/v0.3.0
 ManifestType: defaultLocale
 ManifestVersion: 1.12.0

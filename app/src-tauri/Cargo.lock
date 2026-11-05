@@ -981,7 +981,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "footprints"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1000,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "footprints-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "chrono",

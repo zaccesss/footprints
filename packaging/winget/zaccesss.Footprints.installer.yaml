@@ -1,18 +1,18 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
-# winget installer manifest for Footprints 0.2.0. SHA256_X86_64_PC_WINDOWS_MSVC is the sum from
-# the zip's .sha256 file attached to the v0.2.0 release; packaging/fill-checksums.sh fills it in.
+# winget installer manifest for Footprints 0.3.0. SHA256_X86_64_PC_WINDOWS_MSVC is the sum from
+# the zip's .sha256 file attached to the v0.3.0 release; packaging/fill-checksums.sh fills it in.
 PackageIdentifier: zaccesss.Footprints
-PackageVersion: 0.2.0
+PackageVersion: 0.3.0
 InstallerType: zip
 NestedInstallerType: portable
 NestedInstallerFiles:
-  - RelativeFilePath: footprints-v0.2.0-x86_64-pc-windows-msvc\footprints.exe
+  - RelativeFilePath: footprints-v0.3.0-x86_64-pc-windows-msvc\footprints.exe
     PortableCommandAlias: footprints
 Commands:
   - footprints
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/zaccesss/footprints/releases/download/v0.2.0/footprints-v0.2.0-x86_64-pc-windows-msvc.zip
+    InstallerUrl: https://github.com/zaccesss/footprints/releases/download/v0.3.0/footprints-v0.3.0-x86_64-pc-windows-msvc.zip
     InstallerSha256: SHA256_X86_64_PC_WINDOWS_MSVC
 ManifestType: installer
 ManifestVersion: 1.12.0
