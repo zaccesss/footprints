@@ -1,0 +1,80 @@
+name: Bug report
+description: Report a wrong undo, a missed change, a crash or confusing output
+title: "fix: "
+labels: ["bug"]
+assignees: ["zaccesss"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If an undo went wrong, do not delete the data directory. The ledger and blob store usually still hold what is needed to recover.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - Claude Code hook adapter (footprints hook)
+        - Wrapper (footprints run)
+        - undo or undo --session
+        - log, show or diff
+        - export --otel
+        - MCP server (footprints mcp)
+        - Install or build
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `footprints --version` or the commit you built from.
+      placeholder: "footprints 0.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran and what Footprints did.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: The command output as text, plus `footprints show <id>` for any action involved. Remove private paths and file contents first.
+      render: shell
+  - type: dropdown
+    id: ai-use
+    attributes:
+      label: AI use
+      description: "Required. Did AI help you find, test or check this? Write the title and description yourself either way. See the [AI policy](https://github.com/zaccesss/ai-policy). Dictation, translation and spelling tools do not count."
+      options:
+        - No AI was used
+        - "Yes: AI helped me find, test or check it"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: This does not disclose a security issue (those go through SECURITY.md privately).
+          required: true
