@@ -18,14 +18,10 @@ Footprints is a local ledger of what AI coding agents do: every file they write,
 delete, every shell command they run and every network call their tools report. Each file change
 keeps a copy of the file before and after, so any one step can be shown as a diff and undone.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/demo/demo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/demo/demo-light.svg">
-  <img src="assets/demo/demo-light.svg" width="1002" height="696" alt="A terminal window running Footprints in a folder called demo. A script standing in for an agent runs under footprints run: it turns auto_save on in config.toml and creates NOTES.md. footprints log lists the command and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true. footprints undo 3 restores config.toml and the final log marks that change as undone, with the undo recorded as its own reversible entry. Diff lines keep their plus and minus markers, so the colours are never the only signal.">
-</picture>
+<img src="assets/demo/demo.png" width="780" height="495" alt="A real terminal running Footprints in a folder called demo. cat agent.sh shows a script standing in for an agent: it turns auto_save on in config.toml and creates NOTES.md. footprints run records the command with its two file changes. footprints log lists the command as not reversible and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true, with minus and plus markers so colour is never the only signal. footprints undo 3 restores config.toml and records the undo as entry 4.">
 
-The run above is real output, recorded by [`scripts/demo-capture.sh`](scripts/demo-capture.sh).
-The same transcript as text is in [`assets/demo/demo.txt`](assets/demo/demo.txt).
+The screenshot is a real run in a real terminal. The same transcript as text is in
+[`assets/demo/demo.txt`](assets/demo/demo.txt).
 
 ## Why it exists
 

@@ -3,25 +3,19 @@ sed 's/auto_save = false/auto_save = true/' config.toml > config.toml.new
 mv config.toml.new config.toml
 printf '# Notes\n\nSaving is now automatic.\n' > NOTES.md
 $ footprints run --agent demo -- sh agent.sh
-footprints: recorded command #1 in session run-cfba72f4 with 2 file change(s). See `footprints log --session run-cfba72f4`
+footprints: recorded command #1 in session run-a3170f84 with 2 file change(s). See `footprints log --session run-a3170f84`
 $ footprints log
 ID  TIME                 AGENT  SESSION       KIND         STATE           TARGET
- 1  2026-11-05 16:15:04  demo   run-cfba72f4  command      not reversible  sh agent.sh
- 2  2026-11-05 16:15:04  demo   run-cfba72f4  file_create  reversible      NOTES.md (via #1)
- 3  2026-11-05 16:15:04  demo   run-cfba72f4  file_write   reversible      config.toml (via #1)
+ 1  2026-11-05 16:53:38  demo   run-a3170f84  command      not reversible  sh agent.sh
+ 2  2026-11-05 16:53:39  demo   run-a3170f84  file_create  reversible      NOTES.md (via #1)
+ 3  2026-11-05 16:53:39  demo   run-a3170f84  file_write   reversible      config.toml (via #1)
 $ footprints diff 3
---- a/home/me/demo/config.toml
-+++ b/home/me/demo/config.toml
+--- a/Users/Shared/demo/config.toml
++++ b/Users/Shared/demo/config.toml
 @@ -1,3 +1,3 @@
  theme = "light"
  font_size = 14
 -auto_save = false
 +auto_save = true
 $ footprints undo 3
-undid #3: restored /home/me/demo/config.toml (recorded as #4 in session undo-cce3d2c9)
-$ footprints log
-ID  TIME                 AGENT       SESSION        KIND         STATE           TARGET
- 1  2026-11-05 16:15:04  demo        run-cfba72f4   command      not reversible  sh agent.sh
- 2  2026-11-05 16:15:04  demo        run-cfba72f4   file_create  reversible      NOTES.md (via #1)
- 3  2026-11-05 16:15:04  demo        run-cfba72f4   file_write   undone          config.toml (via #1)
- 4  2026-11-05 16:15:04  footprints  undo-cce3d2c9  file_write   reversible      config.toml (undo of #3)
+undid #3: restored /Users/Shared/demo/config.toml (recorded as #4 in session undo-50f6f21a)

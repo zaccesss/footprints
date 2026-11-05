@@ -23,11 +23,8 @@ All notable changes to Footprints are recorded here. The format follows
 - `FOOTPRINTS_TRASH_DIR`, a folder that prune archives go to instead of the system Trash.
 - `CLICOLOR_FORCE`, which turns colour on through a pipe. `NO_COLOR` and `--no-color` still turn
   it off.
-- A terminal demo in the README and the getting started guide, in light and dark versions that
-  follow the viewer's theme. It is drawn as a terminal window in the Zacess Deep Contrast Dark
-  and Zacess Light palettes, with the real colour output of a recorded run, by
-  `scripts/demo-capture.sh` and `scripts/demo-svg.py`. The transcript is also kept as text in
-  `assets/demo/demo.txt`.
+- A screenshot of a real Footprints run in a real terminal in the README and the getting started
+  guide, with full alt text. The transcript is also kept as text in `assets/demo/demo.txt`.
 - crates.io and Homebrew badges in the README, plus `winget install zaccesss.Footprints` in the
   install table, which works once the first winget submission is accepted.
 - winget manifest templates in `packaging/winget/` for the package `zaccesss.Footprints`, with
@@ -46,9 +43,6 @@ All notable changes to Footprints are recorded here. The format follows
 
 - The workflows README now gives the right wait for a release (10 minutes) and names `attach`
   as the only job that writes to the repository.
-- The README demo image keeps its columns when GitHub shows it. Browsers collapse repeated
-  spaces in an SVG shown as an image, so the drawing script now writes each space as a no-break
-  space.
 
 ## [0.2.0] - 2026-11-05
 
