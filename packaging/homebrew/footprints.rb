@@ -1,7 +1,7 @@
 # Homebrew formula for Footprints 0.2.0, for Formula/footprints.rb in the zaccesss/homebrew-tap
 # repository. Each SHA256_ placeholder is the sum from the matching .sha256 file attached to the
-# v0.2.0 release; packaging/fill-checksums.sh fills them in. The next release changes the version
-# in the four URLs and the four sums.
+# v0.2.0 release; packaging/fill-checksums.sh fills them in. The release workflow moves a copy to
+# each new tag's version before filling it, so the version here can lag behind the latest release.
 class Footprints < Formula
   desc "See and undo what AI agents do on your machine"
   homepage "https://github.com/zaccesss/footprints"

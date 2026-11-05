@@ -14,7 +14,7 @@ What Footprints does today, what comes next and what is deliberately left for la
 | Platforms | macOS, Linux and Windows, all three tested in CI with a real end-to-end run |
 | Interfaces | The CLI, an MCP server with no force option and OpenTelemetry GenAI export |
 | Menu bar app | A minimal Tauri app in [`app/`](app/README.md) with today's changes and an undo button. Built in CI on macOS, unsigned |
-| Release | A release workflow that builds binaries for macOS (arm64 and x86_64), Linux (x86_64 and aarch64) and Windows (x86_64) with sha256 sums, attaches them to the release and publishes to crates.io. A Homebrew formula for `zaccesss/homebrew-tap` is filled from those sums. None of this has run for a real release until v0.2.0 ships |
+| Release | A release workflow that builds binaries for macOS (arm64 and x86_64), Linux (x86_64 and aarch64) and Windows (x86_64) with sha256 sums, attaches them to the release and publishes to crates.io. It first ran for v0.2.0. The same workflow fills the Homebrew formula in `zaccesss/homebrew-tap` from those sums and opens the winget pull request for each new version |
 
 ## Next
 
@@ -24,7 +24,10 @@ What Footprints does today, what comes next and what is deliberately left for la
   project does not have yet.
 - `footprints install <agent>` that writes the hook block into an agent's settings after showing
   the change and asking. Today every install command only prints.
-- A winget manifest beside the Homebrew formula.
+- The winget package `IsaacAdjei.Footprints`. Its manifests are in
+  [`packaging/winget/`](packaging/winget) and the first version is
+  [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471489).
+  Later versions are submitted by the release workflow once it is accepted.
 - Restoring the Windows read-only attribute on undo. Unix modes are restored, but Windows
   attributes are not recorded yet.
 
