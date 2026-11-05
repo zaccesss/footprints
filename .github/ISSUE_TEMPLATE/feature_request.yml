@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose a new adapter, capture method or command
+title: "feat: "
+labels: ["enhancement"]
+assignees: ["zaccesss"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - A new agent adapter
+        - Capture (hooks, wrapper or operating system)
+        - undo
+        - log, show or diff
+        - export --otel
+        - MCP server
+        - Docs
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: A short description of the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The real problem it solves. For an adapter, link the agent's hook or plugin documentation.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Any
+  - type: dropdown
+    id: ai-use
+    attributes:
+      label: AI use
+      description: "Required. Did AI help you find, test or check this? Write the title and description yourself either way. See the [AI policy](https://github.com/zaccesss/ai-policy). Dictation, translation and spelling tools do not count."
+      options:
+        - No AI was used
+        - "Yes: AI helped me find, test or check it"
+    validations:
+      required: true

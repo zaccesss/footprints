@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/zaccesss/footprints/security/policy
+    about: For a security issue, follow SECURITY.md rather than opening an issue.
+  - name: Get help
+    url: https://github.com/zaccesss/footprints/blob/main/SUPPORT.md
+    about: Where to ask a question or get help recovering files.
+  - name: AI policy
+    url: https://github.com/zaccesss/ai-policy
+    about: How AI use is declared in issues and pull requests.
