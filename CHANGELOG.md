@@ -6,6 +6,10 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- CI pins every action to a commit and passes the minimum Rust version as a toolchain input, so Dependabot can bump the actions without changing the Rust version.
+
 ## [0.1.0] - 2026-11-05
 
 ### Added
