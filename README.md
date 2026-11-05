@@ -10,10 +10,22 @@ See and undo what AI agents do on your machine.
 
 [![CI](https://github.com/zaccesss/footprints/actions/workflows/ci.yml/badge.svg)](https://github.com/zaccesss/footprints/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/badge/licence-Apache%202.0-blue.svg)](LICENSE)
+[![crates.io version](https://img.shields.io/crates/v/footprints)](https://crates.io/crates/footprints)
+[![crates.io downloads](https://img.shields.io/crates/d/footprints)](https://crates.io/crates/footprints)
+[![Homebrew tap release](https://img.shields.io/github/v/release/zaccesss/footprints?label=brew%20zaccesss%2Ftap)](https://github.com/zaccesss/homebrew-tap/blob/main/Formula/footprints.rb)
 
 Footprints is a local ledger of what AI coding agents do: every file they write, create or
 delete, every shell command they run and every network call their tools report. Each file change
 keeps a copy of the file before and after, so any one step can be shown as a diff and undone.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/demo/demo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/demo/demo-light.svg">
+  <img src="assets/demo/demo-light.svg" width="1002" height="692" alt="A terminal running Footprints in a folder called demo. A script standing in for an agent runs under footprints run: it turns auto_save on in config.toml and creates NOTES.md. footprints log lists the command and both file changes as reversible. footprints diff 3 shows auto_save changing from false to true. footprints undo 3 restores config.toml and the final log marks that change as undone, with the undo recorded as its own reversible entry.">
+</picture>
+
+The run above is real output, recorded by [`scripts/demo-capture.sh`](scripts/demo-capture.sh).
+The same transcript as text is in [`assets/demo/demo.txt`](assets/demo/demo.txt).
 
 ## Why it exists
 
@@ -79,6 +91,7 @@ CI tests all three with a real end-to-end run. The menu bar app is macOS only an
 | --- | --- |
 | Cargo (Rust 1.89 or later) | `cargo install footprints` |
 | Homebrew on macOS and Linux | `brew install zaccesss/tap/footprints` |
+| winget on Windows | `winget install IsaacAdjei.Footprints`, once the package is accepted. Its first submission is [pending review in the winget repository](https://github.com/microsoft/winget-pkgs/pull/471489) |
 | Release binaries with sha256 sums | From the [GitHub releases](https://github.com/zaccesss/footprints/releases) |
 | From source | `git clone https://github.com/zaccesss/footprints && cargo install --path footprints` |
 

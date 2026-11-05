@@ -6,6 +6,29 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A terminal demo in the README and the getting started guide, in light and dark versions that
+  follow the viewer's theme. It is drawn from a real run by `scripts/demo-capture.sh` and
+  `scripts/demo-svg.py`, with the transcript as text in `assets/demo/demo.txt`.
+- crates.io and Homebrew badges in the README, plus `winget install IsaacAdjei.Footprints` in the
+  install table, which works once the first winget submission is accepted.
+- winget manifest templates in `packaging/winget/`. `packaging/fill-checksums.sh` fills them as
+  well as the Homebrew formula and takes an optional folder of `.sha256` files.
+- `packaging/README.md`, the manual fallback for Homebrew and winget.
+- Two release workflow jobs. `homebrew` fills the formula from the release's sums and sends it
+  to `zaccesss/homebrew-tap` through the GitHub API, as a Zac Bot commit on a `footprints-X.Y.Z`
+  branch and a squash-merged pull request. A failed tap update is a warning in the run summary
+  and never fails the run. `winget` opens the pull request for the new version in
+  `microsoft/winget-pkgs` through winget-releaser. Each skips with a note in the run summary when
+  its secret (`TAP_TOKEN` or `WINGET_TOKEN`) is missing. The winget job also skips until the
+  package exists in winget.
+
+### Fixed
+
+- The workflows README now gives the right wait for a release (10 minutes) and names `attach`
+  as the only job that writes to the repository.
+
 ## [0.2.0] - 2026-11-05
 
 ### Added

@@ -1,5 +1,6 @@
 # builds a binary for each platform when a version tag is pushed, attaches it with its sha256
-# sum to the GitHub release for that tag, then publishes the crate to crates.io. The release
+# sum to the GitHub release for that tag, then publishes the crate to crates.io, bumps the
+# Homebrew formula in zaccesss/homebrew-tap and opens the winget pull request. The release
 # itself is made by a maintainer from a signed tag, so this workflow waits for it and never
 # creates one.
 #
@@ -198,3 +199,175 @@ jobs:
         run: cargo publish --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  # bumps the formula in zaccesss/homebrew-tap to this release. The tap's formula installs the
+  # release archives, so this waits for attach. The tap protects main with a pull request rule,
+  # so the formula goes in through a branch and a squash-merged pull request made with the API,
+  # never a direct push. Without the TAP_TOKEN secret the job only writes a note in the run
+  # summary. A tap that could not be updated is reported without failing the run.
+  homebrew:
+    name: Update the Homebrew tap
+    needs: attach
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # only to read this repository and download the .sha256 files of the release
+      contents: read
+    steps:
+      - name: Check for the tap token
+        id: ready
+        env:
+          # a fine-grained token from the maintainer's account limited to zaccesss/homebrew-tap
+          # with Contents and Pull requests read and write
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "Skipped the Homebrew tap: the TAP_TOKEN secret is not set. Update the formula by hand as packaging/README.md describes." >> "$GITHUB_STEP_SUMMARY"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.ready.outputs.go == 'true'
+        with:
+          persist-credentials: false
+      - name: Fill the formula from the release's checksums
+        id: fill
+        if: steps.ready.outputs.go == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # the templates may still name the previous version; a working copy is moved to this
+          # tag so the release needs no packaging bump by hand. fill-checksums.sh then checks
+          # every URL against the tag as usual.
+          work="$RUNNER_TEMP/templates"
+          cp -R packaging "$work"
+          old="$(sed -n 's/^  version "\(.*\)"$/\1/p' "$work/homebrew/footprints.rb")"
+          new="${TAG#v}"
+          if [ "$old" != "$new" ]; then
+            old_re="$(printf '%s' "$old" | sed 's/\./\\./g')"
+            sed -i "s/$old_re/$new/g" "$work/homebrew/footprints.rb" "$work/winget/"*.yaml
+          fi
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.sha256' --dir "$RUNNER_TEMP/sums"
+          bash "$work/fill-checksums.sh" "$TAG" "$RUNNER_TEMP/packaging" "$RUNNER_TEMP/sums"
+      - name: Send the formula to zaccesss/homebrew-tap
+        id: tap
+        if: steps.ready.outputs.go == 'true' && steps.fill.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          FORMULA: ${{ runner.temp }}/packaging/homebrew/footprints.rb
+        run: |
+          version="${TAG#v}"
+          tap=zaccesss/homebrew-tap
+          path=Formula/footprints.rb
+          branch="footprints-$version"
+          title="feat: Footprints $version"
+
+          # a rerun after the formula landed has nothing to send; git and the contents API name a
+          # file by the same blob hash
+          current="$(gh api "repos/$tap/contents/$path" --jq .sha 2> /dev/null || true)"
+          if [ "$current" = "$(git hash-object "$FORMULA")" ]; then
+            echo "The tap already has the footprints $version formula." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # a branch left by an earlier failed run is started again from main
+          gh api -X DELETE "repos/$tap/git/refs/heads/$branch" > /dev/null 2>&1 || true
+          main="$(gh api "repos/$tap/git/ref/heads/main" --jq .object.sha)"
+          gh api -X POST "repos/$tap/git/refs" -f ref="refs/heads/$branch" -f sha="$main" > /dev/null
+
+          args=(-X PUT "repos/$tap/contents/$path"
+            -f message="$title"
+            -f content="$(base64 -w 0 "$FORMULA")"
+            -f branch="$branch"
+            -f "author[name]=Zac Bot" -f "author[email]=automation@isaacadjei.me"
+            -f "committer[name]=Zac Bot" -f "committer[email]=automation@isaacadjei.me")
+          if [ -n "$current" ]; then
+            args+=(-f sha="$current")
+          fi
+          gh api "${args[@]}" > /dev/null
+
+          number="$(gh api -X POST "repos/$tap/pulls" \
+            -f title="$title" -f head="$branch" -f base=main \
+            -f body="Updates the footprints formula to $version with the checksums of the files attached to https://github.com/zaccesss/footprints/releases/tag/$TAG." \
+            --jq .number)"
+
+          # GitHub works out whether a new pull request can merge in the background, so the first
+          # attempt can be turned away
+          for attempt in 1 2 3 4 5 6; do
+            if gh api -X PUT "repos/$tap/pulls/$number/merge" -f merge_method=squash -f commit_title="$title (#$number)" > /dev/null; then
+              echo "Merged https://github.com/$tap/pull/$number, so \`brew upgrade footprints\` now installs $version." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "The pull request could not merge yet (attempt $attempt of 6). Waiting 10 seconds."
+            sleep 10
+          done
+          echo "Opened https://github.com/$tap/pull/$number but could not merge it." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+      # the files are already attached, so a tap that could not be updated is reported but never
+      # fails the run
+      - name: Report a tap update that failed
+        if: steps.fill.outcome == 'failure' || steps.tap.outcome == 'failure'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "::warning::Could not update zaccesss/homebrew-tap for $TAG. Update the formula by hand as packaging/README.md describes."
+          echo "Could not update the Homebrew tap for $TAG; see the log of this job." >> "$GITHUB_STEP_SUMMARY"
+
+  # opens the pull request for this version in microsoft/winget-pkgs from the maintainer's fork
+  # (zaccesss/winget-pkgs), through winget-releaser, which runs Komac. Komac updates the
+  # previous version's manifests, so it only works once a first version of IsaacAdjei.Footprints
+  # has been accepted; until then the job checks for the package and skips with a note.
+  # WINGET_TOKEN is a classic token for the maintainer's account with the public_repo scope.
+  winget:
+    name: Submit to winget
+    needs: attach
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check for the token and the package
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -z "$WINGET_TOKEN" ]; then
+            echo "The WINGET_TOKEN secret is not set, so no winget pull request was opened. packaging/README.md has the steps to submit by hand." >> "$GITHUB_STEP_SUMMARY"
+            echo "submit=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! gh api repos/microsoft/winget-pkgs/contents/manifests/i/IsaacAdjei/Footprints > /dev/null 2>&1; then
+            echo "IsaacAdjei.Footprints is not in microsoft/winget-pkgs yet, so no update was submitted. The first version is submitted by hand." >> "$GITHUB_STEP_SUMMARY"
+            echo "submit=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "submit=true" >> "$GITHUB_OUTPUT"
+      - uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
+        id: submit
+        if: steps.check.outputs.submit == 'true'
+        # a winget problem is reported, never a failed release
+        continue-on-error: true
+        with:
+          identifier: IsaacAdjei.Footprints
+          installers-regex: 'x86_64-pc-windows-msvc\.zip$'
+          release-tag: ${{ github.ref_name }}
+          release-notes-url: https://github.com/zaccesss/footprints/releases/tag/${{ github.ref_name }}
+          fork-user: zaccesss
+          token: ${{ secrets.WINGET_TOKEN }}
+      - name: Report the winget result
+        if: steps.check.outputs.submit == 'true'
+        env:
+          OUTCOME: ${{ steps.submit.outcome }}
+        run: |
+          if [ "$OUTCOME" = "success" ]; then
+            echo "Submitted the new version to winget." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::The winget submission failed. packaging/README.md has the steps to submit by hand."
+            echo "The winget submission failed. packaging/README.md has the steps to submit by hand." >> "$GITHUB_STEP_SUMMARY"
+          fi
