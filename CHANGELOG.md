@@ -6,6 +6,7 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+
 ### Added
 
 - A terminal demo in the README and the getting started guide, in light and dark versions that
@@ -28,6 +29,8 @@ All notable changes to Footprints are recorded here. The format follows
 
 - The workflows README now gives the right wait for a release (10 minutes) and names `attach`
   as the only job that writes to the repository.
+- The README demo image keeps its columns when GitHub shows it. Browsers collapse repeated spaces in an
+  SVG shown as an image, so the drawing script now writes each space as a no-break space.
 
 ## [0.2.0] - 2026-11-05
 

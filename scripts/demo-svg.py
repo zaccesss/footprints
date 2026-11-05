@@ -50,6 +50,12 @@ THEMES = {
 MIN_CONTRAST = 7.0
 
 
+
+def keep_spaces(text):
+    # browsers showing an SVG as an image collapse runs of spaces whatever xml:space says, so each
+    # space becomes a no-break space, the same width in a monospace font, to keep the columns
+    return escape(text).replace(" ", "\u00a0")
+
 def luminance(hex_colour):
     channels = []
     for i in (1, 3, 5):
@@ -115,17 +121,17 @@ def render(transcript, theme, title):
         f'<line x1="1" y1="36" x2="{width - 1}" y2="36" stroke="{theme["border"]}" stroke-width="1"/>',
         f'<text x="{PAD_X}" y="24" font-family="{FONT}" font-size="13" '
         f'fill="{theme["title"]}">~/demo</text>',
-        f'<g font-family="{FONT}" font-size="{FONT_SIZE}" xml:space="preserve">',
+        f'<g font-family="{FONT}" font-size="{FONT_SIZE}">',
     ]
     y = PAD_TOP + FONT_SIZE
     for role, text in drawn:
         if role == "prompt":
             out.append(
                 f'<text x="{PAD_X}" y="{y}" fill="{theme["prompt"]}" font-weight="bold">'
-                f'{escape(text)}</text>'
+                f'{keep_spaces(text)}</text>'
             )
         else:
-            out.append(f'<text x="{PAD_X}" y="{y}" fill="{theme[role]}">{escape(text)}</text>')
+            out.append(f'<text x="{PAD_X}" y="{y}" fill="{theme[role]}">{keep_spaces(text)}</text>')
         y += LINE_HEIGHT
     out += ["</g>", "</svg>", ""]
     return "\n".join(out)
