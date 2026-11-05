@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # records the README demo from a real run: a small script stands in for an agent, edits a
 # config file and creates a notes file under `footprints run`, then log, diff and undo are run
-# on it. Prints the transcript, each command after a `$ ` prompt and its real output below it.
+# on it. Prints the transcript, each command after a `$ ` prompt and its real output below it,
+# with the colour footprints itself prints on a terminal.
 #
-#   scripts/demo-capture.sh [path to the footprints binary] > demo.txt
-#   scripts/demo-svg.py demo.txt assets/demo/demo
+#   scripts/demo-capture.sh [path to the footprints binary] > /tmp/demo.ansi
+#   scripts/demo-svg.py /tmp/demo.ansi assets/demo/demo
 #
 # the run happens in a fresh temporary folder with its own FOOTPRINTS_HOME, so a real ledger is
 # never touched. The temporary folder is shown as /home/me in the transcript, since the real
@@ -19,7 +20,9 @@ fi
 # pwd -P so the prefix matches the resolved path footprints prints (/private/var on macOS)
 work="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$work"' EXIT
-export FOOTPRINTS_HOME="$work/ledger" NO_COLOR=1
+# CLICOLOR_FORCE keeps footprints' colours although its output goes into a pipe
+unset NO_COLOR
+export FOOTPRINTS_HOME="$work/ledger" CLICOLOR_FORCE=1
 mkdir -p "$work/home/me/demo"
 cd "$work/home/me/demo"
 

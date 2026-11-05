@@ -17,7 +17,7 @@ tag="${1:?$usage}"
 out="${2:?$usage}"
 here="$(cd "$(dirname "$0")" && pwd)"
 formula="$here/homebrew/footprints.rb"
-installer="IsaacAdjei.Footprints.installer.yaml"
+installer="zaccesss.Footprints.installer.yaml"
 
 if [ -n "${3:-}" ]; then
     sums="$3"

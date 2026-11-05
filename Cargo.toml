@@ -23,6 +23,7 @@ rusqlite = { version = "0.41.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 similar = "3.2.1"
+trash = "5.3.0"
 zstd = "0.14.3"
 
 [target.'cfg(windows)'.dependencies]

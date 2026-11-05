@@ -11,13 +11,16 @@ reader.
   start with `footprints: refused:` and errors with `footprints: error:`.
 - **Colour is optional.** Colour is only used when standard output is a terminal. It is turned off
   by `NO_COLOR` set to any value (see [no-color.org](https://no-color.org)), by `TERM=dumb` and by
-  the `--no-color` flag on every command. Piped and redirected output never has escape codes.
+  the `--no-color` flag on every command. Piped and redirected output never has escape codes
+  unless `CLICOLOR_FORCE` asks for them.
 - **Plain characters only.** Tables are aligned with spaces. There are no box-drawing characters,
   emoji, spinners or progress bars, so a braille display or a screen reader's line mode reads each
   row in order.
 - **Nothing moves.** No output animates or redraws itself. No command waits for a key press.
-- **Machine-readable output.** `log`, `show` and `undo` take `--json` for anyone who prefers their
-  own viewer or a script.
+- **Machine-readable output.** `log`, `show`, `undo`, `prune` and `import` take `--json` for
+  anyone who prefers their own viewer or a script.
+- **Nothing is removed without a plain warning.** `footprints prune` prints what it would remove
+  as sentences and one aligned table. It changes nothing until it is run again with `--yes`.
 
 ## Colours used
 

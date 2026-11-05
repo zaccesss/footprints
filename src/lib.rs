@@ -13,6 +13,7 @@ pub mod hook;
 pub mod mcp;
 pub mod output;
 pub mod platform;
+pub mod prune;
 pub mod run;
 pub mod signals;
 pub mod snapshot;

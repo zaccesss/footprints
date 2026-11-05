@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 # winget installer manifest for Footprints 0.2.0. SHA256_X86_64_PC_WINDOWS_MSVC is the sum from
 # the zip's .sha256 file attached to the v0.2.0 release; packaging/fill-checksums.sh fills it in.
-PackageIdentifier: IsaacAdjei.Footprints
+PackageIdentifier: zaccesss.Footprints
 PackageVersion: 0.2.0
 InstallerType: zip
 NestedInstallerType: portable

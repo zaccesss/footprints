@@ -1,9 +1,9 @@
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use footprints::output::{self, Paint};
 use footprints::store::{Filter, Kind, Store};
 use footprints::undo::{self, Refused};
-use footprints::{daemon, diff, export, hook, mcp, run};
+use footprints::{daemon, diff, export, hook, mcp, prune, run};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -143,6 +143,67 @@ enum Cmd {
     },
     /// record the changes of a `footprints run` that was killed before it could
     Recover,
+    /// remove old actions and the stored file copies only they use
+    ///
+    /// Without --yes nothing is changed: the actions, sessions and bytes that would go are
+    /// printed. With --yes the pruned actions and every file copy they use are written as one
+    /// archive folder, footprints-pruned-<date>-<n>, which is moved to the Trash (the Recycle
+    /// Bin on Windows). `footprints import` puts an archive back. Selectors combine: an action
+    /// is pruned only when it matches every one given. A command and the file changes under it
+    /// are pruned together. Sessions still being recorded are never pruned. Prune refuses
+    /// while any other footprints process has the ledger open. Prune is not offered over MCP,
+    /// so an agent can never erase its own trail.
+    #[command(
+        override_usage = "footprints prune <SELECTOR>... [--yes] [--permanent] [--json]",
+        group(
+        ArgGroup::new("selector")
+            .required(true)
+            .multiple(true)
+            .args(["older_than", "before", "session", "agent", "all", "max_size"])
+        )
+    )]
+    Prune {
+        /// actions that finished longer ago than this, such as 30d, 12h or 2w
+        #[arg(long, value_name = "DURATION", value_parser = prune::parse_duration)]
+        older_than: Option<i64>,
+        /// actions that finished before this local date (YYYY-MM-DD) or RFC 3339 time
+        #[arg(long, value_name = "DATE", value_parser = prune::parse_date)]
+        before: Option<i64>,
+        /// actions in this session
+        #[arg(long)]
+        session: Option<String>,
+        /// actions recorded for this agent
+        #[arg(long)]
+        agent: Option<String>,
+        /// every action
+        #[arg(long)]
+        all: bool,
+        /// prune the oldest sessions first until the data folder fits in this size, such as
+        /// 500MB or 2GiB
+        #[arg(long, value_name = "SIZE", value_parser = prune::parse_size)]
+        max_size: Option<u64>,
+        /// prune for real; without it nothing is changed
+        #[arg(long)]
+        yes: bool,
+        /// delete outright instead of moving an archive to the Trash
+        #[arg(long)]
+        permanent: bool,
+        /// print JSON instead of text
+        #[arg(long)]
+        json: bool,
+    },
+    /// restore the actions in an archive made by `footprints prune`
+    ///
+    /// Every action keeps its original id. The archive is read and left as it is. Import
+    /// refuses when an id in the archive is already in the ledger, which means it was
+    /// restored before.
+    Import {
+        /// the archive folder, taken out of the Trash first
+        archive: PathBuf,
+        /// print JSON instead of text
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -285,6 +346,15 @@ fn run_hook(phase: &HookPhase, agent: &str) -> Result<()> {
         HookPhase::Post => hook::post(&store, &input, agent)?,
     };
     Ok(())
+}
+
+/// a busy ledger is a deliberate refusal, so it exits 3 like a refused undo.
+fn busy_is_refusal(e: anyhow::Error) -> anyhow::Error {
+    if e.is::<footprints::store::Busy>() {
+        Refused(e.to_string()).into()
+    } else {
+        e
+    }
 }
 
 fn print_json(v: &impl serde::Serialize) -> Result<()> {
@@ -470,6 +540,76 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
                  recorded by another tier. See `footprints log --session {}`",
                 r.recorded, r.session, r.joined, r.session
             );
+        }
+        Cmd::Prune {
+            older_than,
+            before,
+            session,
+            agent,
+            all,
+            max_size,
+            yes,
+            permanent,
+            json,
+        } => {
+            let sel = prune::Selectors {
+                older_than_ms: older_than,
+                before_ms: before,
+                session,
+                agent,
+                all,
+                max_size,
+            };
+            let home = footprints::store::default_home()?;
+            let outcome = if yes {
+                let store = Store::open_exclusive(&home).map_err(busy_is_refusal)?;
+                let plan = prune::plan(&store, &sel)?;
+                prune::apply(&store, &plan, &prune::Disposal::from_env(permanent))?
+            } else {
+                // a dry run still works while the ledger is in use. It says that --yes would be
+                // refused
+                let (store, busy) = match Store::open_exclusive(&home) {
+                    Ok(s) => (s, false),
+                    Err(e) if e.is::<footprints::store::Busy>() => (Store::open(&home)?, true),
+                    Err(e) => return Err(e),
+                };
+                let plan = prune::plan(&store, &sel)?;
+                prune::Outcome {
+                    plan,
+                    pruned: false,
+                    archive_kept_in: "none",
+                    archive_name: None,
+                    archive_path: None,
+                    size_after: None,
+                    busy,
+                }
+            };
+            if json {
+                print_json(&outcome)?;
+            } else {
+                print!("{}", prune::render(&outcome));
+            }
+        }
+        Cmd::Import { archive, json } => {
+            let store = Store::open_default()?;
+            let r = prune::import(&store, &archive)?;
+            if json {
+                print_json(&r)?;
+            } else {
+                println!(
+                    "restored {} action(s) in {} session(s) and {} stored file copy(ies) from {}",
+                    r.actions,
+                    r.sessions,
+                    r.blobs_added,
+                    archive.display()
+                );
+                if r.blobs_missing > 0 {
+                    println!(
+                        "{} file copy(ies) named by these actions are in neither the archive nor                          the ledger, so the changes that need them cannot be undone",
+                        r.blobs_missing
+                    );
+                }
+            }
         }
         Cmd::Mcp => {
             let store = Store::open_default()?;

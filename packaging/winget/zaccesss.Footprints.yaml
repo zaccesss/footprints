@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.12.0.schema.json
 # winget version manifest for Footprints 0.2.0.
-PackageIdentifier: IsaacAdjei.Footprints
+PackageIdentifier: zaccesss.Footprints
 PackageVersion: 0.2.0
 DefaultLocale: en-US
 ManifestType: version

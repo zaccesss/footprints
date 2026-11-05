@@ -222,6 +222,41 @@ fn log_is_plain_text_with_no_color() {
 }
 
 #[test]
+fn clicolor_force_colours_a_pipe_unless_no_color_is_set() {
+    let env = Env::new();
+    env.ok(&["run", "--", "sh", "-c", "echo hi > out.txt"]);
+    let forced = env
+        .cmd()
+        .env_remove("NO_COLOR")
+        .env("CLICOLOR_FORCE", "1")
+        .arg("log")
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&forced.stdout).contains("\x1b[1m"));
+    for (var, value) in [("CLICOLOR_FORCE", "0"), ("NO_COLOR", "1")] {
+        let out = env
+            .cmd()
+            .env("CLICOLOR_FORCE", "1")
+            .env(var, value)
+            .arg("log")
+            .output()
+            .unwrap();
+        assert!(
+            !String::from_utf8_lossy(&out.stdout).contains('\x1b'),
+            "{var}={value}"
+        );
+    }
+    let flag = env
+        .cmd()
+        .env_remove("NO_COLOR")
+        .env("CLICOLOR_FORCE", "1")
+        .args(["log", "--no-color"])
+        .output()
+        .unwrap();
+    assert!(!String::from_utf8_lossy(&flag.stdout).contains('\x1b'));
+}
+
+#[test]
 fn a_command_that_cannot_start_leaves_no_entry() {
     let env = Env::new();
     let out = env.run(&["run", "--", "definitely-not-a-real-program-xyz"]);

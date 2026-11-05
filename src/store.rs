@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
 
-const SCHEMA_VERSION: i64 = 2;
+pub(crate) const SCHEMA_VERSION: i64 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -189,10 +189,37 @@ pub struct CacheKey<'a> {
 }
 
 pub struct Store {
+    // declared before the lock so the connection is closed before the lock is released
     conn: Connection,
     pub blobs: BlobStore,
     home: PathBuf,
+    _ledger_lock: std::fs::File,
 }
+
+/// how a store holds `locks/ledger.lock`. Every process that reads or writes the ledger holds
+/// it shared; `footprints prune` alone holds it exclusively, since it deletes blobs that a
+/// running daemon, wrapper or hook may be about to point a new action at.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LockMode {
+    Shared,
+    Exclusive,
+}
+
+/// the error `open_exclusive` returns when another process holds the ledger lock.
+#[derive(Debug)]
+pub struct Busy;
+
+impl fmt::Display for Busy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(
+            "another footprints process is using the ledger: a `footprints run`, the daemon, the \
+             MCP server, the menu bar app or a hook. Stop it (or close the agent that runs it) and \
+             try again",
+        )
+    }
+}
+
+impl std::error::Error for Busy {}
 
 pub fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
@@ -211,11 +238,11 @@ pub fn private_dir(path: &Path) -> Result<()> {
     crate::snapshot::set_mode(path, Some(0o700))
 }
 
-const COLUMNS: &str = "id, time_ms, end_time_ms, agent, session, kind, target, pre_hash, post_hash, \
+pub(crate) const COLUMNS: &str = "id, time_ms, end_time_ms, agent, session, kind, target, pre_hash, post_hash, \
      pre_size, post_size, pre_mode, intent, reversible, status, tool, tool_use_id, parent_id, cwd, \
      note, undone_by, undo_of, manifest_hash, staging";
 
-const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS actions (
+pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS actions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         time_ms INTEGER NOT NULL,
         end_time_ms INTEGER,
@@ -259,6 +286,17 @@ impl Store {
     }
 
     pub fn open(home: &Path) -> Result<Self> {
+        Self::open_with(home, LockMode::Shared)
+    }
+
+    /// opens the ledger as its only user, failing with [`Busy`] when any other footprints
+    /// process has it open. Other processes that start meanwhile wait until this store is
+    /// dropped.
+    pub fn open_exclusive(home: &Path) -> Result<Self> {
+        Self::open_with(home, LockMode::Exclusive)
+    }
+
+    fn open_with(home: &Path, mode: LockMode) -> Result<Self> {
         let db = home.join("ledger.db");
         let first_use = !db.exists();
         std::fs::create_dir_all(home)
@@ -268,6 +306,7 @@ impl Store {
             // as its owner set it
             crate::snapshot::set_mode(home, Some(0o700))?;
         }
+        let ledger_lock = take_ledger_lock(home, mode)?;
         let conn = Connection::open(&db)?;
         crate::snapshot::set_mode(&db, Some(0o600))?;
         // hooks for parallel tool calls can write at the same moment, so wait rather than fail
@@ -305,11 +344,16 @@ impl Store {
             conn,
             blobs,
             home: home.to_path_buf(),
+            _ledger_lock: ledger_lock,
         })
     }
 
     pub fn home(&self) -> &Path {
         &self.home
+    }
+
+    pub(crate) fn conn(&self) -> &Connection {
+        &self.conn
     }
 
     pub fn insert(&self, a: &Action) -> Result<i64> {
@@ -346,6 +390,45 @@ impl Store {
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
+    }
+
+    /// inserts an action under its own id, for restoring a pruned archive. Ids are never
+    /// reused (the table is AUTOINCREMENT), so a pruned id is still free unless the archive was
+    /// already restored.
+    pub(crate) fn insert_with_id(&self, a: &Action) -> Result<()> {
+        self.conn.execute(
+            &format!(
+                "INSERT INTO actions ({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+                    ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)"
+            ),
+            params![
+                a.id,
+                a.time_ms,
+                a.end_time_ms,
+                a.agent,
+                a.session,
+                a.kind.as_str(),
+                a.target,
+                a.pre_hash,
+                a.post_hash,
+                a.pre_size,
+                a.post_size,
+                a.pre_mode,
+                a.intent,
+                a.reversible,
+                a.status.as_str(),
+                a.tool,
+                a.tool_use_id,
+                a.parent_id,
+                a.cwd,
+                a.note,
+                a.undone_by,
+                a.undo_of,
+                a.manifest_hash,
+                a.staging,
+            ],
+        )?;
+        Ok(())
     }
 
     /// writes every mutable field of an existing action back to the ledger.
@@ -596,6 +679,33 @@ impl Store {
     }
 }
 
+/// `File::lock_shared` and `File::try_lock` are `flock` on Unix and `LockFileEx` on Windows,
+/// so the lock goes with the process: one that is killed never leaves the ledger locked.
+fn take_ledger_lock(home: &Path, mode: LockMode) -> Result<std::fs::File> {
+    let dir = home.join("locks");
+    private_dir(&dir)?;
+    let path = dir.join("ledger.lock");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&path)
+        .with_context(|| format!("opening {}", path.display()))?;
+    match mode {
+        LockMode::Shared => file
+            .lock_shared()
+            .with_context(|| format!("could not lock {}", path.display()))?,
+        LockMode::Exclusive => match file.try_lock() {
+            Ok(()) => {}
+            Err(std::fs::TryLockError::WouldBlock) => return Err(Busy.into()),
+            Err(std::fs::TryLockError::Error(e)) => {
+                return Err(e).with_context(|| format!("could not lock {}", path.display()));
+            }
+        },
+    }
+    Ok(file)
+}
+
 /// an SQL test that the `target` column names the same path as parameter `n`. Windows file
 /// systems ignore case, so there the comparison folds ASCII case; the stored target keeps its
 /// spelling.
@@ -607,7 +717,7 @@ fn target_eq(n: usize) -> String {
     }
 }
 
-fn row_to_action(r: &Row<'_>) -> rusqlite::Result<Action> {
+pub(crate) fn row_to_action(r: &Row<'_>) -> rusqlite::Result<Action> {
     let kind: String = r.get(5)?;
     let status: String = r.get(14)?;
     let conv = |e: anyhow::Error| {

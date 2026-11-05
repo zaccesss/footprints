@@ -28,7 +28,7 @@ impl BlobStore {
         Ok(Self { root })
     }
 
-    fn path_for(&self, hash: &str) -> Result<PathBuf> {
+    pub(crate) fn path_for(&self, hash: &str) -> Result<PathBuf> {
         if hash.len() < 3 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
             bail!("invalid blob hash {hash:?}");
         }
@@ -37,6 +37,12 @@ impl BlobStore {
 
     pub fn contains(&self, hash: &str) -> bool {
         self.path_for(hash).map(|p| p.exists()).unwrap_or(false)
+    }
+
+    /// the compressed size on disk. None when the blob is not stored.
+    pub fn stored_size(&self, hash: &str) -> Option<u64> {
+        let p = self.path_for(hash).ok()?;
+        std::fs::metadata(p).ok().map(|m| m.len())
     }
 
     /// storing the same bytes twice writes nothing new, which is what keeps repeated

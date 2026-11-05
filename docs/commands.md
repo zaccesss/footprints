@@ -12,6 +12,8 @@ Every subcommand and flag of `footprints` 0.2.0, taken from its own `--help` out
 - [diff](#diff)
 - [undo](#undo)
 - [recover](#recover)
+- [prune](#prune)
+- [import](#import)
 - [export](#export)
 - [run](#run)
 - [daemon](#daemon)
@@ -44,6 +46,8 @@ Commands:
   mcp      serve the ledger to agents as an MCP server over stdio
   daemon   record changes made by any process under the given roots, until stopped
   recover  record the changes of a `footprints run` that was killed before it could
+  prune    remove old actions and the stored file copies only they use
+  import   restore the actions in an archive made by `footprints prune`
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -58,7 +62,9 @@ Options:
 ```
 
 `--no-color` is accepted by every subcommand. Colour is also off when `NO_COLOR` is set to any
-value, when `TERM=dumb` and whenever standard output is not a terminal. The colours used and
+value, when `TERM=dumb` and whenever standard output is not a terminal. `CLICOLOR_FORCE` set to
+any value other than `0` turns colour on even through a pipe, unless `NO_COLOR` or `--no-color`
+turns it off. The colours used and
 what carries the meaning without them are in [ACCESSIBILITY.md](../ACCESSIBILITY.md).
 
 ## Exit statuses
@@ -68,7 +74,7 @@ what carries the meaning without them are in [ACCESSIBILITY.md](../ACCESSIBILITY
 | 0 | Success |
 | 1 | An error. The message starts with `footprints: error:` |
 | 2 | A usage error, such as an unknown flag |
-| 3 | An undo refused on purpose, such as a conflict. The message starts with `footprints: refused:` |
+| 3 | An undo, prune or import refused on purpose, such as an undo conflict or a prune while the ledger is in use. The message starts with `footprints: refused:` |
 
 Two commands differ. `footprints run` exits with the child's own status once the child has
 started, so a 1 or a 3 there may come from the child. `footprints hook` always exits 0, so a
@@ -222,6 +228,116 @@ Options:
 
 Every `footprints run` also does this when it starts. See
 [recovering a killed run](undo.md#recovering-a-killed-run).
+
+## prune
+
+> [!NOTE]
+> `prune` and `import` are new since 0.2.0 and ship in the next release.
+
+```console
+$ footprints prune --help
+remove old actions and the stored file copies only they use
+
+Without --yes nothing is changed: the actions, sessions and bytes that would go are printed. With --yes the pruned actions and every file copy they use are written as one archive folder, footprints-pruned-<date>-<n>, which is moved to the Trash (the Recycle Bin on Windows). `footprints import` puts an archive back. Selectors combine: an action is pruned only when it matches every one given. A command and the file changes under it are pruned together. Sessions still being recorded are never pruned. Prune refuses while any other footprints process has the ledger open. Prune is not offered over MCP, so an agent can never erase its own trail.
+
+Usage: footprints prune <SELECTOR>... [--yes] [--permanent] [--json]
+
+Options:
+      --no-color
+          never print colour, even on a terminal (NO_COLOR is also respected)
+
+      --older-than <DURATION>
+          actions that finished longer ago than this, such as 30d, 12h or 2w
+
+      --before <DATE>
+          actions that finished before this local date (YYYY-MM-DD) or RFC 3339 time
+
+      --session <SESSION>
+          actions in this session
+
+      --agent <AGENT>
+          actions recorded for this agent
+
+      --all
+          every action
+
+      --max-size <SIZE>
+          prune the oldest sessions first until the data folder fits in this size, such as 500MB or 2GiB
+
+      --yes
+          prune for real; without it nothing is changed
+
+      --permanent
+          delete outright instead of moving an archive to the Trash
+
+      --json
+          print JSON instead of text
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+At least one selector is required; without one the command exits 2. Selectors combine with AND:
+
+| Selector | Picks |
+| --- | --- |
+| `--older-than <DURATION>` | Actions that finished longer ago than this. Units are `s`, `m`, `h`, `d` and `w`, as in `90m`, `12h`, `30d` or `2w` |
+| `--before <DATE>` | Actions that finished before local midnight of `YYYY-MM-DD` or before an RFC 3339 time such as `2026-10-01T09:00:00Z` |
+| `--session <SESSION>` | Actions in that exact session |
+| `--agent <AGENT>` | Actions recorded for that exact agent name |
+| `--all` | Every action |
+| `--max-size <SIZE>` | The oldest matching sessions, one whole session at a time, until the data directory fits. `KB`, `MB`, `GB` and `TB` are powers of 1000. `KiB`, `MiB`, `GiB` and `TiB` are powers of 1024. A plain number is bytes |
+
+Without `--yes` it prints the plan and changes nothing:
+
+```console
+$ footprints prune --agent demo
+Would prune 5 action(s) in 2 session(s).
+
+SESSION       AGENT  ACTIONS  FIRST                LAST
+run-1f2e3d4c  demo         3  2026-11-05 16:12:38  2026-11-05 16:12:38
+run-8a9b0c1d  demo         2  2026-11-05 16:12:38  2026-11-05 16:12:39
+
+Frees 549 B of stored file copies (5 blob(s)) and about 2.4 KB of ledger.
+Kept 1 blob(s) that remaining actions still use.
+Data folder: 66.4 KB now, about 63.5 KB after.
+Nothing was changed. Run again with --yes to prune. The pruned actions then go to the Trash as one archive folder, unless --permanent is given.
+```
+
+The ledger figure is an estimate; the file copies are counted exactly. With `--yes` the same
+summary starts with `Pruned` and ends with where the archive went. `--json` prints the plan and
+the result as JSON. The archive format, what is always kept and how to restore are in
+[removing data](data-and-privacy.md#removing-data).
+
+## import
+
+```console
+$ footprints import --help
+restore the actions in an archive made by `footprints prune`
+
+Every action keeps its original id. The archive is read and left as it is. Import refuses when an id in the archive is already in the ledger, which means it was restored before.
+
+Usage: footprints import [OPTIONS] <ARCHIVE>
+
+Arguments:
+  <ARCHIVE>
+          the archive folder, taken out of the Trash first
+
+Options:
+      --json
+          print JSON instead of text
+
+      --no-color
+          never print colour, even on a terminal (NO_COLOR is also respected)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+```console
+$ footprints import ~/Desktop/footprints-pruned-2026-11-05-1
+restored 5 action(s) in 2 session(s) and 5 stored file copy(ies) from /Users/me/Desktop/footprints-pruned-2026-11-05-1
+```
 
 ## export
 
@@ -394,5 +510,7 @@ The tools it offers and how to register it are in [MCP server](mcp.md).
 | `FOOTPRINTS_MAX_FILES` | `10000` | The most files one snapshot walks |
 | `FOOTPRINTS_SNAPSHOT_BUDGET_BYTES` | `268435456` (256 MiB) | The most new content one Bash hook snapshot reads |
 | `FOOTPRINTS_SNAPSHOT_SECONDS` | `10` | The longest one Bash hook snapshot runs |
+| `FOOTPRINTS_TRASH_DIR` | unset | A folder that `footprints prune` moves its archives into instead of the system Trash |
 | `NO_COLOR` | unset | Any value turns colour off |
+| `CLICOLOR_FORCE` | unset | Any value other than `0` turns colour on through a pipe. `NO_COLOR` and `--no-color` still win |
 | `FOOTPRINTS_SESSION` | set by `footprints run` | The session name, given to the wrapped command |

@@ -1,16 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1002" height="692" viewBox="0 0 1002 692" role="img" aria-labelledby="title desc">
-<title id="title">A Footprints run: an agent script edits config.toml and creates NOTES.md, then log, diff and undo</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="1002" height="696" viewBox="0 0 1002 696" role="img" aria-labelledby="title desc">
+<title id="title">A Footprints run in a terminal: an agent script edits config.toml and creates NOTES.md, then log, diff and undo</title>
 <desc id="desc">$ cat agent.sh
 sed 's/auto_save = false/auto_save = true/' config.toml &gt; config.toml.new
 mv config.toml.new config.toml
 printf '# Notes\n\nSaving is now automatic.\n' &gt; NOTES.md
 $ footprints run --agent demo -- sh agent.sh
-footprints: recorded command #1 in session run-056bbae8 with 2 file change(s). See `footprints log --session run-056bbae8`
+footprints: recorded command #1 in session run-cfba72f4 with 2 file change(s). See `footprints log --session run-cfba72f4`
 $ footprints log
 ID  TIME                 AGENT  SESSION       KIND         STATE           TARGET
- 1  2026-11-05 14:54:37  demo   run-056bbae8  command      not reversible  sh agent.sh
- 2  2026-11-05 14:54:37  demo   run-056bbae8  file_create  reversible      NOTES.md (via #1)
- 3  2026-11-05 14:54:37  demo   run-056bbae8  file_write   reversible      config.toml (via #1)
+ 1  2026-11-05 16:15:04  demo   run-cfba72f4  command      not reversible  sh agent.sh
+ 2  2026-11-05 16:15:04  demo   run-cfba72f4  file_create  reversible      NOTES.md (via #1)
+ 3  2026-11-05 16:15:04  demo   run-cfba72f4  file_write   reversible      config.toml (via #1)
 $ footprints diff 3
 --- a/home/me/demo/config.toml
 +++ b/home/me/demo/config.toml
@@ -20,45 +20,51 @@ $ footprints diff 3
 -auto_save = false
 +auto_save = true
 $ footprints undo 3
-undid #3: restored /home/me/demo/config.toml (recorded as #4 in session undo-ce8bf3df)
+undid #3: restored /home/me/demo/config.toml (recorded as #4 in session undo-cce3d2c9)
 $ footprints log
 ID  TIME                 AGENT       SESSION        KIND         STATE           TARGET
- 1  2026-11-05 14:54:37  demo        run-056bbae8   command      not reversible  sh agent.sh
- 2  2026-11-05 14:54:37  demo        run-056bbae8   file_create  reversible      NOTES.md (via #1)
- 3  2026-11-05 14:54:37  demo        run-056bbae8   file_write   undone          config.toml (via #1)
- 4  2026-11-05 14:54:37  footprints  undo-ce8bf3df  file_write   reversible      config.toml (undo of #3)
+ 1  2026-11-05 16:15:04  demo        run-cfba72f4   command      not reversible  sh agent.sh
+ 2  2026-11-05 16:15:04  demo        run-cfba72f4   file_create  reversible      NOTES.md (via #1)
+ 3  2026-11-05 16:15:04  demo        run-cfba72f4   file_write   undone          config.toml (via #1)
+ 4  2026-11-05 16:15:04  footprints  undo-cce3d2c9  file_write   reversible      config.toml (undo of #3)
 </desc>
-<rect x="1" y="1" width="1000" height="690" rx="8" fill="#ffffff" stroke="#57606a" stroke-width="1"/>
-<line x1="1" y1="36" x2="1001" y2="36" stroke="#57606a" stroke-width="1"/>
-<text x="24" y="24" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#24292f">~/demo</text>
-<g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" xml:space="preserve">
-<text x="24" y="67" fill="#0a3069" font-weight="bold">$ cat agent.sh</text>
-<text x="24" y="89" fill="#1f2328">sed 's/auto_save = false/auto_save = true/' config.toml &gt; config.toml.new</text>
-<text x="24" y="111" fill="#1f2328">mv config.toml.new config.toml</text>
-<text x="24" y="133" fill="#1f2328">printf '# Notes\n\nSaving is now automatic.\n' &gt; NOTES.md</text>
-<text x="24" y="155" fill="#0a3069" font-weight="bold">$ footprints run --agent demo -- sh agent.sh</text>
-<text x="24" y="177" fill="#1f2328">footprints: recorded command #1 in session run-056bbae8 with 2 file change(s). See `footprints log </text>
-<text x="24" y="199" fill="#1f2328">--session run-056bbae8`</text>
-<text x="24" y="221" fill="#0a3069" font-weight="bold">$ footprints log</text>
-<text x="24" y="243" fill="#1f2328">ID  TIME                 AGENT  SESSION       KIND         STATE           TARGET</text>
-<text x="24" y="265" fill="#1f2328"> 1  2026-11-05 14:54:37  demo   run-056bbae8  command      not reversible  sh agent.sh</text>
-<text x="24" y="287" fill="#1f2328"> 2  2026-11-05 14:54:37  demo   run-056bbae8  file_create  reversible      NOTES.md (via #1)</text>
-<text x="24" y="309" fill="#1f2328"> 3  2026-11-05 14:54:37  demo   run-056bbae8  file_write   reversible      config.toml (via #1)</text>
-<text x="24" y="331" fill="#0a3069" font-weight="bold">$ footprints diff 3</text>
-<text x="24" y="353" fill="#1f2328">--- a/home/me/demo/config.toml</text>
-<text x="24" y="375" fill="#1f2328">+++ b/home/me/demo/config.toml</text>
-<text x="24" y="397" fill="#1f2328">@@ -1,3 +1,3 @@</text>
-<text x="24" y="419" fill="#1f2328"> theme = "light"</text>
-<text x="24" y="441" fill="#1f2328"> font_size = 14</text>
-<text x="24" y="463" fill="#82071e">-auto_save = false</text>
-<text x="24" y="485" fill="#0f5323">+auto_save = true</text>
-<text x="24" y="507" fill="#0a3069" font-weight="bold">$ footprints undo 3</text>
-<text x="24" y="529" fill="#1f2328">undid #3: restored /home/me/demo/config.toml (recorded as #4 in session undo-ce8bf3df)</text>
-<text x="24" y="551" fill="#0a3069" font-weight="bold">$ footprints log</text>
-<text x="24" y="573" fill="#1f2328">ID  TIME                 AGENT       SESSION        KIND         STATE           TARGET</text>
-<text x="24" y="595" fill="#1f2328"> 1  2026-11-05 14:54:37  demo        run-056bbae8   command      not reversible  sh agent.sh</text>
-<text x="24" y="617" fill="#1f2328"> 2  2026-11-05 14:54:37  demo        run-056bbae8   file_create  reversible      NOTES.md (via #1)</text>
-<text x="24" y="639" fill="#1f2328"> 3  2026-11-05 14:54:37  demo        run-056bbae8   file_write   undone          config.toml (via #1)</text>
-<text x="24" y="661" fill="#1f2328"> 4  2026-11-05 14:54:37  footprints  undo-ce8bf3df  file_write   reversible      config.toml (undo of #3)</text>
+<clipPath id="window"><rect x="1" y="1" width="1000" height="694" rx="10"/></clipPath>
+<rect x="1" y="1" width="1000" height="694" rx="10" fill="#ffffff"/>
+<rect x="0" y="0" width="1002" height="40" fill="#f4f4f4" clip-path="url(#window)"/>
+<line x1="1" y1="40" x2="1001" y2="40" stroke="#d6dde8" stroke-width="1"/>
+<rect x="1" y="1" width="1000" height="694" rx="10" fill="none" stroke="#707070" stroke-width="1.5"/>
+<circle cx="30" cy="20.0" r="6" fill="#ca010e"/>
+<circle cx="50" cy="20.0" r="6" fill="#9d6902"/>
+<circle cx="70" cy="20.0" r="6" fill="#01751c"/>
+<text x="501.0" y="25.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#424242">me@demo: ~/demo</text>
+<g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" fill="#111111">
+<text x="24" y="73"><tspan fill="#0049a3" font-weight="bold">~/demo ❯ </tspan><tspan font-weight="bold">cat agent.sh</tspan></text>
+<text x="24" y="95">sed 's/auto_save = false/auto_save = true/' config.toml &gt; config.toml.new</text>
+<text x="24" y="117">mv config.toml.new config.toml</text>
+<text x="24" y="139">printf '# Notes\n\nSaving is now automatic.\n' &gt; NOTES.md</text>
+<text x="24" y="161"><tspan fill="#0049a3" font-weight="bold">~/demo ❯ </tspan><tspan font-weight="bold">footprints run --agent demo -- sh agent.sh</tspan></text>
+<text x="24" y="183"><tspan fill="#424242">footprints: recorded command #1 in session run-cfba72f4 with 2 file change(s). See `footprints log </tspan></text>
+<text x="24" y="205"><tspan fill="#424242">--session run-cfba72f4`</tspan></text>
+<text x="24" y="227"><tspan fill="#0049a3" font-weight="bold">~/demo ❯ </tspan><tspan font-weight="bold">footprints log</tspan></text>
+<text x="24" y="249"><tspan font-weight="bold">ID  TIME                 AGENT  SESSION       KIND         STATE           TARGET</tspan></text>
+<text x="24" y="271"> 1  2026-11-05 16:15:04  demo   run-cfba72f4  command      <tspan fill="#843800">not reversible</tspan>  sh agent.sh</text>
+<text x="24" y="293"> 2  2026-11-05 16:15:04  demo   run-cfba72f4  file_create  reversible      NOTES.md (via #1)</text>
+<text x="24" y="315"> 3  2026-11-05 16:15:04  demo   run-cfba72f4  file_write   reversible      config.toml (via #1)</text>
+<text x="24" y="337"><tspan fill="#0049a3" font-weight="bold">~/demo ❯ </tspan><tspan font-weight="bold">footprints diff 3</tspan></text>
+<text x="24" y="359"><tspan font-weight="bold">--- a/home/me/demo/config.toml</tspan></text>
+<text x="24" y="381"><tspan font-weight="bold">+++ b/home/me/demo/config.toml</tspan></text>
+<text x="24" y="403"><tspan fill="#003a84">@@ -1,3 +1,3 @@</tspan></text>
+<text x="24" y="425"> theme = "light"</text>
+<text x="24" y="447"> font_size = 14</text>
+<text x="24" y="469"><tspan fill="#810005">-auto_save = false</tspan></text>
+<text x="24" y="491"><tspan fill="#005b14">+auto_save = true</tspan></text>
+<text x="24" y="513"><tspan fill="#0049a3" font-weight="bold">~/demo ❯ </tspan><tspan font-weight="bold">footprints undo 3</tspan></text>
+<text x="24" y="535">undid #3: restored /home/me/demo/config.toml (recorded as #4 in session undo-cce3d2c9)</text>
+<text x="24" y="557"><tspan fill="#0049a3" font-weight="bold">~/demo ❯ </tspan><tspan font-weight="bold">footprints log</tspan></text>
+<text x="24" y="579"><tspan font-weight="bold">ID  TIME                 AGENT       SESSION        KIND         STATE           TARGET</tspan></text>
+<text x="24" y="601"> 1  2026-11-05 16:15:04  demo        run-cfba72f4   command      <tspan fill="#843800">not reversible</tspan>  sh agent.sh</text>
+<text x="24" y="623"> 2  2026-11-05 16:15:04  demo        run-cfba72f4   file_create  reversible      NOTES.md (via #1)</text>
+<text x="24" y="645"> 3  2026-11-05 16:15:04  demo        run-cfba72f4   file_write   undone          config.toml (via #1)</text>
+<text x="24" y="667"> 4  2026-11-05 16:15:04  footprints  undo-cce3d2c9  file_write   reversible      config.toml (undo of #3)</text>
 </g>
 </svg>

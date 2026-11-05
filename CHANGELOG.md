@@ -8,13 +8,31 @@ All notable changes to Footprints are recorded here. The format follows
 
 ### Added
 
+- `footprints prune`, which removes old history by `--older-than`, `--before`, `--session`,
+  `--agent`, `--all` or a `--max-size` budget that gives up the oldest sessions first. It prints
+  what it would remove and changes nothing without `--yes`. The pruned actions and their file
+  copies go to the Trash (the Recycle Bin on Windows) as one archive folder unless
+  `--permanent` is given. A file copy that a remaining action still uses is never deleted. The
+  ledger is vacuumed afterwards. Sessions still being recorded are kept. A command and its
+  file changes are pruned together. Prune is not offered over MCP.
+- `footprints import`, which restores a pruned archive with every action's original id and
+  refuses an archive that was already restored.
+- `locks/ledger.lock`, held shared by every process with the ledger open, so `footprints prune
+  --yes` refuses while a run, the daemon, the MCP server, the menu bar app or a hook is using
+  the ledger.
+- `FOOTPRINTS_TRASH_DIR`, a folder that prune archives go to instead of the system Trash.
+- `CLICOLOR_FORCE`, which turns colour on through a pipe. `NO_COLOR` and `--no-color` still turn
+  it off.
 - A terminal demo in the README and the getting started guide, in light and dark versions that
-  follow the viewer's theme. It is drawn from a real run by `scripts/demo-capture.sh` and
-  `scripts/demo-svg.py`, with the transcript as text in `assets/demo/demo.txt`.
-- crates.io and Homebrew badges in the README, plus `winget install IsaacAdjei.Footprints` in the
+  follow the viewer's theme. It is drawn as a terminal window in the Zacess Deep Contrast Dark
+  and Zacess Light palettes, with the real colour output of a recorded run, by
+  `scripts/demo-capture.sh` and `scripts/demo-svg.py`. The transcript is also kept as text in
+  `assets/demo/demo.txt`.
+- crates.io and Homebrew badges in the README, plus `winget install zaccesss.Footprints` in the
   install table, which works once the first winget submission is accepted.
-- winget manifest templates in `packaging/winget/`. `packaging/fill-checksums.sh` fills them as
-  well as the Homebrew formula and takes an optional folder of `.sha256` files.
+- winget manifest templates in `packaging/winget/` for the package `zaccesss.Footprints`, with
+  `zaccesss` as its publisher and author. `packaging/fill-checksums.sh` fills them as well as
+  the Homebrew formula and takes an optional folder of `.sha256` files.
 - `packaging/README.md`, the manual fallback for Homebrew and winget.
 - Two release workflow jobs. `homebrew` fills the formula from the release's sums and sends it
   to `zaccesss/homebrew-tap` through the GitHub API, as a Zac Bot commit on a `footprints-X.Y.Z`
@@ -28,6 +46,9 @@ All notable changes to Footprints are recorded here. The format follows
 
 - The workflows README now gives the right wait for a release (10 minutes) and names `attach`
   as the only job that writes to the repository.
+- The README demo image keeps its columns when GitHub shows it. Browsers collapse repeated
+  spaces in an SVG shown as an image, so the drawing script now writes each space as a no-break
+  space.
 
 ## [0.2.0] - 2026-11-05
 
