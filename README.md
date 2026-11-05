@@ -80,6 +80,10 @@ flowchart LR
 
 CI tests all three with a real end-to-end run. The menu bar app is macOS only and unsigned.
 
+<img src="assets/demo/menu-bar-app.png" width="450" height="451" alt="The Footprints menu bar window listing today's changes: a file delete, the command that made it and a file create, each with its state and an Undo button where it can be undone.">
+
+[The menu bar app](docs/menu-bar-app.md) shows today's changes with an undo button on each one.
+
 > [!NOTE]
 > Footprints is an early developer CLI. Read [what can and cannot be undone](docs/undo.md#what-can-and-cannot-be-undone)
 > before relying on it.

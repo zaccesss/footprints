@@ -4,6 +4,8 @@
 recorded changes newest first, with an undo button on each one that can be undone. It reads the
 same ledger as the CLI: `FOOTPRINTS_HOME` when set, otherwise the platform default.
 
+<img src="../assets/demo/menu-bar-app.png" width="450" height="451" alt="The Footprints menu bar window listing today's changes: a file delete, the command that made it and a file create, each with its state and an Undo button where it can be undone.">
+
 ## What it does
 
 - Lists today's actions, read from the newest 5,000 in the ledger.

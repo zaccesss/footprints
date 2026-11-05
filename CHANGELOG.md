@@ -6,6 +6,11 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A screenshot of the menu bar app in the README and in the menu bar app guide.
+- A dark and a light banner and a dark social preview image in `assets/`, beside the light one.
+
 ## [0.3.0] - 2026-11-05
 
 ### Added
