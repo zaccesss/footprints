@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use footprints::output::{self, Paint};
 use footprints::store::{Filter, Kind, Store};
 use footprints::undo::{self, Refused};
-use footprints::{diff, export, hook, mcp, run};
+use footprints::{daemon, diff, export, hook, mcp, run};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -21,7 +21,8 @@ const EXIT_REFUSED: u8 = 3;
         Footprints keeps a local ledger of file writes, shell commands and network calls made by \
         AI agents, with a stored copy of every file before and after each change. Any one file \
         change can be undone. An undo refuses if the file changed since.\n\n\
-        Data lives in $FOOTPRINTS_HOME when it is set and in ~/.local/share/footprints otherwise."
+        Data lives in $FOOTPRINTS_HOME when it is set, otherwise in ~/.local/share/footprints \
+        on macOS and Linux and in %LOCALAPPDATA%\\footprints on Windows."
 )]
 struct Cli {
     /// never print colour, even on a terminal (NO_COLOR is also respected)
@@ -90,9 +91,12 @@ enum Cmd {
     Hook {
         #[command(subcommand)]
         phase: HookPhase,
-        /// the agent name stored with each action
-        #[arg(long, global = true, default_value = hook::DEFAULT_AGENT)]
-        agent: String,
+        /// which agent sent the payload
+        #[arg(long, global = true, value_enum, default_value = "claude-code")]
+        from: hook::Dialect,
+        /// the agent name stored with each action (defaults to the --from agent)
+        #[arg(long, global = true)]
+        agent: Option<String>,
     },
     /// print the configuration that connects an agent to footprints
     Install {
@@ -119,6 +123,24 @@ enum Cmd {
     },
     /// serve the ledger to agents as an MCP server over stdio
     Mcp,
+    /// record changes made by any process under the given roots, until stopped
+    Daemon {
+        /// a directory to watch; repeat for several
+        #[arg(long = "root", required = true)]
+        roots: Vec<PathBuf>,
+        /// copy every file under the roots first, so the first change to each is reversible
+        #[arg(long)]
+        snapshot: bool,
+        /// stop after this many seconds instead of waiting for Ctrl+C
+        #[arg(long)]
+        seconds: Option<u64>,
+        /// Linux only: also read fanotify to name the writing process (needs CAP_SYS_ADMIN)
+        #[arg(long)]
+        fanotify: bool,
+        /// Windows only: also read the volume's USN change journal (needs administrator rights)
+        #[arg(long)]
+        usn: bool,
+    },
     /// record the changes of a `footprints run` that was killed before it could
     Recover,
 }
@@ -139,6 +161,55 @@ enum InstallTarget {
         #[arg(long)]
         print: bool,
     },
+    /// Cursor hooks for hooks.json
+    Cursor {
+        /// print the snippet (the only mode in this version; nothing is written)
+        #[arg(long)]
+        print: bool,
+    },
+    /// OpenAI Codex CLI hooks for hooks.json
+    Codex {
+        /// print the snippet (the only mode in this version; nothing is written)
+        #[arg(long)]
+        print: bool,
+    },
+    /// Gemini CLI hooks for settings.json
+    Gemini {
+        /// print the snippet (the only mode in this version; nothing is written)
+        #[arg(long)]
+        print: bool,
+    },
+}
+
+impl InstallTarget {
+    fn parts(&self) -> (bool, &'static str, &'static str, &'static str) {
+        match self {
+            InstallTarget::ClaudeCode { print } => (
+                *print,
+                "claude-code",
+                "~/.claude/settings.json or .claude/settings.json",
+                footprints::CLAUDE_CODE_SETTINGS,
+            ),
+            InstallTarget::Cursor { print } => (
+                *print,
+                "cursor",
+                "~/.cursor/hooks.json or .cursor/hooks.json",
+                footprints::CURSOR_HOOKS,
+            ),
+            InstallTarget::Codex { print } => (
+                *print,
+                "codex",
+                "~/.codex/hooks.json or .codex/hooks.json",
+                footprints::CODEX_HOOKS,
+            ),
+            InstallTarget::Gemini { print } => (
+                *print,
+                "gemini",
+                "~/.gemini/settings.json or .gemini/settings.json",
+                footprints::GEMINI_SETTINGS,
+            ),
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -154,8 +225,23 @@ fn main() -> ExitCode {
         Err(e) => {
             // exit status 2 from a PreToolUse hook blocks the tool call, so a bad hook
             // argument in an agent's settings is reported without stopping the agent
-            if std::env::args().nth(1).as_deref() == Some("hook") {
+            let args: Vec<String> = std::env::args().collect();
+            if args.iter().skip(1).any(|a| a == "hook") {
                 eprintln!("footprints: hook error: {e}");
+                // the agent is still writing the payload; reading it to the end first means
+                // the agent never sees a closed pipe and the reply below always arrives
+                let _ = std::io::copy(&mut std::io::stdin().lock(), &mut std::io::sink());
+                // the safe reply for whichever agent this looks like, so a typo in its
+                // settings never blocks a tool call
+                let pre = args.iter().any(|a| a == "pre");
+                let dialect = if args.iter().any(|a| a.contains("cursor")) {
+                    hook::Dialect::Cursor
+                } else if args.iter().any(|a| a.contains("gemini")) {
+                    hook::Dialect::Gemini
+                } else {
+                    hook::Dialect::ClaudeCode
+                };
+                print!("{}", dialect.reply(pre));
                 return ExitCode::SUCCESS;
             }
             e.exit();
@@ -163,10 +249,16 @@ fn main() -> ExitCode {
     };
     // a failing hook must never block the agent's tool call, so hook errors are reported on
     // stderr and the exit status stays 0
-    if let Cmd::Hook { phase, agent } = &cli.cmd {
-        if let Err(e) = run_hook(phase, agent) {
-            eprintln!("footprints: hook error: {e:#}");
+    if let Cmd::Hook { phase, from, agent } = &cli.cmd {
+        let agent = agent.as_deref().unwrap_or(from.agent());
+        // a panic is caught too, so the reply below is always printed
+        match std::panic::catch_unwind(|| run_hook(phase, agent)) {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => eprintln!("footprints: hook error: {e:#}"),
+            Err(_) => eprintln!("footprints: hook error: internal panic"),
         }
+        // printed even after an error, since Cursor blocks a before hook without a reply
+        print!("{}", from.reply(matches!(phase, HookPhase::Pre)));
         return ExitCode::SUCCESS;
     }
     match dispatch(cli) {
@@ -306,17 +398,16 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
             }
         }
         Cmd::Hook { .. } => unreachable!("handled in main"),
-        Cmd::Install {
-            target: InstallTarget::ClaudeCode { print },
-        } => {
+        Cmd::Install { target } => {
+            let (print, name, place, snippet) = target.parts();
             if !print {
                 bail!(
                     "this version only prints the snippet and never edits agent settings. Run \
-                     `footprints install claude-code --print` and merge the output into \
-                     ~/.claude/settings.json or .claude/settings.json yourself"
+                     `footprints install {name} --print` and merge the output into {place} \
+                     yourself"
                 );
             }
-            print!("{}", footprints::CLAUDE_CODE_SETTINGS);
+            print!("{snippet}");
         }
         Cmd::Run {
             agent,
@@ -355,6 +446,30 @@ fn dispatch(cli: Cli) -> Result<ExitCode> {
             for l in lines {
                 println!("{l}");
             }
+        }
+        Cmd::Daemon {
+            roots,
+            snapshot,
+            seconds,
+            fanotify,
+            usn,
+        } => {
+            let store = Store::open_default()?;
+            let r = daemon::run(
+                &store,
+                &daemon::DaemonOptions {
+                    roots,
+                    snapshot,
+                    seconds,
+                    fanotify,
+                    usn,
+                },
+            )?;
+            eprintln!(
+                "footprints: daemon stopped. {} change(s) recorded in session {}, {} already \
+                 recorded by another tier. See `footprints log --session {}`",
+                r.recorded, r.session, r.joined, r.session
+            );
         }
         Cmd::Mcp => {
             let store = Store::open_default()?;

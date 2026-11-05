@@ -26,7 +26,7 @@ an agent write where it should not. Issues in scope include:
 
 ## Supported versions
 
-Footprints is at version 0.1. Only the latest release and the `main` branch get security fixes.
+Only the latest release and the `main` branch get security fixes.
 
 ## Reporting a vulnerability
 

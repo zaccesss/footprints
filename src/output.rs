@@ -122,18 +122,22 @@ fn display_target(a: &Action) -> String {
 /// paths under the current directory are shown relative to it, which is how they were most
 /// likely typed; anything else keeps its full path with the home directory shortened to `~`.
 fn tilde(path: &str) -> String {
+    let p = std::path::Path::new(path);
     if let Ok(cwd) = std::env::current_dir() {
-        let canon = cwd.canonicalize().unwrap_or(cwd);
-        if let Some(rest) = path.strip_prefix(&format!("{}/", canon.to_string_lossy())) {
-            return rest.to_string();
+        let canon = crate::platform::canonical(&cwd).unwrap_or(cwd);
+        if let Ok(rest) = p.strip_prefix(&canon)
+            && !rest.as_os_str().is_empty()
+        {
+            return rest.to_string_lossy().into_owned();
         }
     }
-    match std::env::var("HOME") {
-        Ok(h) if !h.is_empty() && path.starts_with(&format!("{h}/")) => {
-            format!("~{}", &path[h.len()..])
-        }
-        _ => path.to_string(),
+    if let Some(h) = crate::platform::home_dir()
+        && let Ok(rest) = p.strip_prefix(&h)
+        && !rest.as_os_str().is_empty()
+    {
+        return format!("~{}{}", std::path::MAIN_SEPARATOR, rest.to_string_lossy());
     }
+    path.to_string()
 }
 
 /// the timeline as an aligned table. Columns are padded with spaces only, so the table also

@@ -198,6 +198,33 @@ fn install_prints_valid_settings_and_writes_nothing() {
 }
 
 #[test]
+fn powershell_is_recorded_like_bash() {
+    // Claude Code's native Windows shell tool carries the same `command` field as Bash
+    let env = Env::new();
+    fs::write(env.path("notes.txt"), "old\n").unwrap();
+    let input =
+        json!({ "command": "Set-Content notes.txt new", "description": "rewrite the notes" });
+    hook(
+        &env,
+        "pre",
+        &payload(&env, "PreToolUse", "PowerShell", input.clone(), "tu_ps"),
+    );
+    fs::write(env.path("notes.txt"), "new\n").unwrap();
+    hook(
+        &env,
+        "post",
+        &payload(&env, "PostToolUse", "PowerShell", input, "tu_ps"),
+    );
+
+    let log = env.log();
+    let cmd = &log[0];
+    assert_eq!(cmd["kind"], "command");
+    assert_eq!(cmd["intent"], "rewrite the notes");
+    let edit = env.find("file_write", &env.path("notes.txt"));
+    assert_eq!(edit["parent_id"], cmd["id"]);
+}
+
+#[test]
 fn bash_snapshot_over_budget_is_reported_not_guessed() {
     let env = Env::new();
     fs::write(env.path("big.txt"), "x".repeat(4096)).unwrap();

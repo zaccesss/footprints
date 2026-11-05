@@ -1,0 +1,200 @@
+# builds a binary for each platform when a version tag is pushed, attaches it with its sha256
+# sum to the GitHub release for that tag, then publishes the crate to crates.io. The release
+# itself is made by a maintainer from a signed tag, so this workflow waits for it and never
+# creates one.
+#
+# assets are added after the release is published, which only works while immutable releases
+# are off for this repository. Turning them on means making each release as a draft, letting
+# this workflow attach the files, then publishing it.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # a tag that does not match the crate version would attach binaries that report another
+  # version and publish the wrong one, so nothing else runs until they agree
+  version:
+    name: Tag matches the crate version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compare the tag with Cargo.toml
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          crate="$(cargo metadata --no-deps --format-version 1 --locked | jq -r '.packages[] | select(.name == "footprints") | .version')"
+          if [ "${TAG#v}" != "$crate" ]; then
+            echo "::error::The tag $TAG does not match the crate version $crate in Cargo.toml."
+            exit 1
+          fi
+          echo "Tag $TAG matches footprints $crate."
+
+  build:
+    name: ${{ matrix.target }}
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    # the builds only read the repository; the one job that writes to the release is attach
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - name: Set up the musl cross toolchain
+        if: contains(matrix.target, 'musl')
+        uses: taiki-e/setup-cross-toolchain-action@12b7ad4acfa95a1476779d6c06699b96ec1691f8 # v1.42.0
+        with:
+          target: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ${{ matrix.target }}
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Package the binary with the docs
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="footprints-$TAG-$TARGET"
+          mkdir -p "$name" dist
+          cp README.md LICENSE NOTICE CHANGELOG.md ACCESSIBILITY.md "$name/"
+          cp -R docs "$name/docs"
+          if [[ "$TARGET" == *windows* ]]; then
+            cp "target/$TARGET/release/footprints.exe" "$name/"
+            7z a -tzip "dist/$name.zip" "$name" > /dev/null
+            asset="$name.zip"
+          else
+            cp "target/$TARGET/release/footprints" "$name/"
+            tar -czf "dist/$name.tar.gz" "$name"
+            asset="$name.tar.gz"
+          fi
+          cd dist
+          if command -v sha256sum > /dev/null; then
+            sha256sum "$asset" > "$asset.sha256"
+          else
+            shasum -a 256 "$asset" > "$asset.sha256"
+          fi
+          cat "$asset.sha256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  attach:
+    name: Attach the files to the release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # only to attach the built files to the release of this tag
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Wait for the release of this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # the maintainer makes the release right after pushing the tag, so this is usually quick
+          for attempt in $(seq 1 20); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              exit 0
+            fi
+            echo "No release for $TAG yet (attempt $attempt of 20). Waiting 30 seconds."
+            sleep 30
+          done
+          echo "No release named $TAG exists after 10 minutes. Create it from the tag, then rerun this job."
+          exit 1
+      - name: Attach the archives and their sums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ls -l dist
+          test "$(find dist -name '*.sha256' | wc -l)" -eq 5
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+
+  # publishes the crate to crates.io through Trusted Publishing: the job proves its identity to
+  # crates.io with GitHub's OIDC token from the crates-io environment, so no crates.io token is
+  # stored anywhere. Runs only once every platform's archive is attached, so crates.io never
+  # gets a version whose release binaries are missing.
+  publish:
+    name: Publish to crates.io
+    needs: attach
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: crates-io
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - name: Check whether this version is already on crates.io
+        id: check
+        shell: bash
+        run: |
+          version="$(cargo metadata --no-deps --format-version 1 --locked | jq -r '.packages[] | select(.name == "footprints") | .version')"
+          # crates.io asks API clients to send a User-Agent that names them
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -A "footprints-release (github.com/zaccesss/footprints)" \
+            "https://crates.io/api/v1/crates/footprints/$version")"
+          case "$code" in
+            200)
+              echo "footprints $version is already on crates.io, so publishing is skipped." >> "$GITHUB_STEP_SUMMARY"
+              echo "publish=false" >> "$GITHUB_OUTPUT" ;;
+            404)
+              echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::crates.io answered $code when asked about footprints $version."
+              exit 1 ;;
+          esac
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        if: steps.check.outputs.publish == 'true'
+        id: auth
+      - name: Publish
+        if: steps.check.outputs.publish == 'true'
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

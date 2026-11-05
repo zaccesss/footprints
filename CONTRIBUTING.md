@@ -7,7 +7,7 @@ a large pull request saves wasted work on both sides.
 
 - Bug fixes, above all anything where an undo restores the wrong bytes or loses a change
 - Hook adapters for other agents that have pre and post tool hooks
-- Capture improvements for macOS and Linux that keep the "refuse on conflict" rule
+- Capture improvements for macOS, Linux and Windows that keep the "refuse on conflict" rule
 - Clearer output, error messages and docs
 
 ## What does not belong here
@@ -25,7 +25,9 @@ cargo test
 cargo build --release
 ```
 
-CI runs the same four checks on Ubuntu and macOS. The tests create temporary directories and set
+CI runs the same four checks on Ubuntu, macOS and Windows, then `scripts/e2e.sh` against the
+release build. On Windows the tests drive the wrapper with small `sh` scripts, so Git for Windows'
+`usr\bin` must be on the `PATH`. The tests create temporary directories and set
 `FOOTPRINTS_HOME` to one, so they never touch a real ledger. New tests should do the same. A change
 to capture or undo needs a test that checks the restored bytes, not only the exit status.
 
@@ -36,13 +38,18 @@ to capture or undo needs a test that checks the restored bytes, not only the exi
 | `src/store.rs` | The SQLite ledger and the action model |
 | `src/blob.rs` | The content-addressed blob store |
 | `src/snapshot.rs` | Directory walks, file images and manifests |
-| `src/hook.rs` | The Claude Code hook adapter |
+| `src/hook.rs` | The hook adapters for Claude Code, Cursor, Codex CLI and Gemini CLI |
 | `src/run.rs` | The `footprints run` wrapper |
+| `src/daemon.rs` | The `footprints daemon` recorder and its fanotify and USN journal readers |
+| `src/platform.rs`, `src/signals.rs` | Everything that differs between macOS, Linux and Windows |
 | `src/undo.rs` | Undo, conflict checks and session undo |
 | `src/diff.rs`, `src/output.rs` | Diffs and readable output |
 | `src/export.rs` | OpenTelemetry export |
 | `src/mcp.rs` | The MCP server |
 | `tests/` | Integration tests that drive the real binary |
+| `scripts/e2e.sh` | One end-to-end run of a built binary, used by CI on every platform |
+| `app/` | The menu bar app, a separate Tauri crate. See [app/README.md](app/README.md) |
+| `packaging/` | The Homebrew formula template and the script that fills its checksums |
 
 ## How to contribute
 

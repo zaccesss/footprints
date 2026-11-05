@@ -65,7 +65,14 @@ impl BlobStore {
             f.write_all(&compressed)?;
             f.sync_all()?;
         }
-        fs::rename(&tmp, &path)?;
+        if let Err(e) = fs::rename(&tmp, &path) {
+            let _ = fs::remove_file(&tmp);
+            // Windows refuses to replace a blob another process is reading; the same bytes
+            // are already there, so the race is harmless
+            if !path.exists() {
+                return Err(e.into());
+            }
+        }
         Ok(hash)
     }
 

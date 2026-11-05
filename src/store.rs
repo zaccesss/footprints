@@ -198,14 +198,9 @@ pub fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
 }
 
-/// the data directory is `FOOTPRINTS_HOME` when set. The fallback `~/.local/share/footprints`
-/// is the same path on macOS and Linux, so it is easy to find on either.
+/// the data directory: `FOOTPRINTS_HOME` or the platform default from [`crate::platform`].
 pub fn default_home() -> Result<PathBuf> {
-    if let Some(h) = std::env::var_os("FOOTPRINTS_HOME").filter(|v| !v.is_empty()) {
-        return Ok(PathBuf::from(h));
-    }
-    let home = std::env::var_os("HOME").context("HOME is not set and FOOTPRINTS_HOME is empty")?;
-    Ok(PathBuf::from(home).join(".local/share/footprints"))
+    crate::platform::default_home()
 }
 
 /// creates a directory that only the owner can read, since it holds copies of whatever files
@@ -445,6 +440,26 @@ impl Store {
         self.query_lenient(&sql, [])
     }
 
+    /// actions that finished at or after `since_ms`, plus pending ones that are recent or
+    /// belong to a running wrapper. The daemon uses these to tell whether a change it saw was
+    /// already recorded by a hook, the wrapper or an undo.
+    pub fn recent(&self, since_ms: i64, pending_since_ms: i64) -> Result<Vec<Action>> {
+        let sql = format!(
+            "SELECT {COLUMNS} FROM actions WHERE COALESCE(end_time_ms, time_ms) >= ?1
+             OR (status = 'pending' AND (time_ms >= ?2 OR staging IS NOT NULL)) ORDER BY id"
+        );
+        self.query_lenient(&sql, params![since_ms, pending_since_ms])
+    }
+
+    /// daemon sessions left pending by a daemon that stopped without shutting down cleanly.
+    pub fn pending_daemons(&self) -> Result<Vec<Action>> {
+        let sql = format!(
+            "SELECT {COLUMNS} FROM actions WHERE status = 'pending' AND tool = 'daemon'
+             AND parent_id IS NULL ORDER BY id"
+        );
+        self.query_lenient(&sql, [])
+    }
+
     fn query_lenient(&self, sql: &str, args: impl rusqlite::Params) -> Result<Vec<Action>> {
         let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map(args, |r| {
@@ -479,9 +494,10 @@ impl Store {
     ) -> Result<Option<Action>> {
         let sql = format!(
             "SELECT {COLUMNS} FROM actions WHERE status = 'pending' AND parent_id IS NULL
-             AND tool = ?1 AND (?2 IS NULL OR target = ?2) AND (?3 IS NULL OR session = ?3)
+             AND tool = ?1 AND (?2 IS NULL OR {t2}) AND (?3 IS NULL OR session = ?3)
              AND ((?4 IS NOT NULL AND tool_use_id = ?4) OR (?4 IS NULL AND tool_use_id IS NULL))
-             ORDER BY id DESC LIMIT 1"
+             ORDER BY id DESC LIMIT 1",
+            t2 = target_eq(2)
         );
         let found = self
             .conn
@@ -497,13 +513,39 @@ impl Store {
         // a pre hook without an id paired with a post hook that has one
         let sql = format!(
             "SELECT {COLUMNS} FROM actions WHERE status = 'pending' AND parent_id IS NULL
-             AND tool = ?1 AND (?2 IS NULL OR target = ?2) AND (?3 IS NULL OR session = ?3)
-             AND tool_use_id IS NULL ORDER BY id DESC LIMIT 1"
+             AND tool = ?1 AND (?2 IS NULL OR {t2}) AND (?3 IS NULL OR session = ?3)
+             AND tool_use_id IS NULL ORDER BY id DESC LIMIT 1",
+            t2 = target_eq(2)
         );
         Ok(self
             .conn
             .query_row(&sql, params![tool, target, session], row_to_action)
             .optional()?)
+    }
+
+    /// the newest action of any kind that names this target.
+    pub fn latest_for_target(&self, target: &str) -> Result<Option<Action>> {
+        let sql = format!(
+            "SELECT {COLUMNS} FROM actions WHERE {} ORDER BY id DESC LIMIT 1",
+            target_eq(1)
+        );
+        Ok(self
+            .conn
+            .query_row(&sql, params![target], row_to_action)
+            .optional()?)
+    }
+
+    /// true when any action newer than `id` names the same target.
+    pub fn newer_for_target(&self, target: &str, id: i64) -> Result<bool> {
+        let n: i64 = self.conn.query_row(
+            &format!(
+                "SELECT COUNT(*) FROM actions WHERE {} AND id > ?2",
+                target_eq(1)
+            ),
+            params![target, id],
+            |r| r.get(0),
+        )?;
+        Ok(n > 0)
     }
 
     pub fn cache_get(&self, k: CacheKey<'_>) -> Result<Option<String>> {
@@ -551,6 +593,17 @@ impl Store {
     pub fn execute_raw(&self, sql: &str) -> Result<()> {
         self.conn.execute_batch(sql)?;
         Ok(())
+    }
+}
+
+/// an SQL test that the `target` column names the same path as parameter `n`. Windows file
+/// systems ignore case, so there the comparison folds ASCII case; the stored target keeps its
+/// spelling.
+fn target_eq(n: usize) -> String {
+    if cfg!(windows) {
+        format!("lower(target) = lower(?{n})")
+    } else {
+        format!("target = ?{n}")
     }
 }
 

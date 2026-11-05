@@ -6,9 +6,50 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Windows support. The data directory defaults to `%LOCALAPPDATA%\footprints`. Paths with drive
+  letters, forward slashes and the `\\?\` prefix are stored in one normal form. Run locks use
+  `LockFileEx` through `File::lock`. A killed wrapper is detected with `OpenProcess`. The
+  wrapper survives `Ctrl+C` and `Ctrl+Break` while its child runs. On a console close it records
+  in the seconds Windows allows. The file cache uses the NTFS file index and change time.
+- `footprints daemon`, an opt-in recorder for changes made by any process under a list of roots.
+  It uses FSEvents on macOS, inotify on Linux and ReadDirectoryChangesW on Windows. `--fanotify` on
+  Linux names the process behind each write and `--usn` on Windows also reads the NTFS change
+  journal. `--snapshot` keeps a pre-image of every file from the start. Changes another tier
+  already recorded are joined to it rather than recorded twice. A file moved in from outside a
+  root is never deleted on undo. Lost events trigger a walk of every root.
+- Hook adapters for Cursor, OpenAI Codex CLI and Gemini CLI through `footprints hook pre --from`
+  and `footprints hook post --from`, with `footprints install cursor|codex|gemini --print`.
+  Codex `apply_patch` calls record every file named in the patch. Cursor's Write and Delete
+  tools are recorded through `preToolUse` and `postToolUse` with a real pre-image. An
+  `afterFileEdit` that no `preToolUse` saw gets a pre-image rebuilt from the edit text only
+  when it can be proved exact.
+- A minimal menu bar app in `app/` built with Tauri 2. It lists today's changes and undoes one
+  with the same conflict check as the CLI. Its own undo records are listed too, so an undo made
+  from the app can be taken back there. It is unsigned.
+- The Footprints mark: a trail of two filled steps and a hollow one, in `assets/` as light, dark,
+  automatic and one-colour SVGs plus a lockup with the name. The README header shows it. The
+  menu bar app uses it as its template tray icon and its app icon.
+- Linux pre-images use a `FICLONE` reflink where the file system supports it.
+- `scripts/e2e.sh`, an end-to-end run of a built binary that checks the restored bytes.
+- Release binaries for macOS (arm64 and x86_64), Linux (x86_64 and aarch64) and Windows (x86_64)
+  with sha256 sums, attached to each GitHub release by a new release workflow. The same workflow
+  publishes to crates.io through Trusted Publishing and skips a version that is already there.
+- A Homebrew formula template for `zaccesss/homebrew-tap` and `packaging/fill-checksums.sh`.
+- ROADMAP.md, with what is done, what is next and what is deliberately later.
+- The Claude Code hooks record `PowerShell`, Claude Code's native Windows shell tool, the same way
+  as `Bash`. Release archives carry the `docs/` folder so the README's links work offline.
+
 ### Changed
 
+- CI runs on Windows as well as Ubuntu and macOS, runs the end-to-end script on all three, builds
+  every release target and builds the menu bar app on macOS.
+- `..` at the root of an absolute path now stays at the root when a path is normalised.
 - CI pins every action to a commit and passes the minimum Rust version as a toolchain input, so Dependabot can bump the actions without changing the Rust version.
+- The README is now a short overview. The detail moved into a new `docs/` folder with pages
+  for getting started, capture, undo, every command, MCP, export, data and privacy and the menu
+  bar app, plus a setup guide for each supported agent and for agents without a native adapter.
 
 ## [0.1.0] - 2026-11-05
 

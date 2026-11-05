@@ -5,7 +5,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 /// directories that are either rebuilt from source or tracked by their own tool, so copying
 /// them would cost a lot and protect nothing.
@@ -42,14 +42,14 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn of(md: &fs::Metadata) -> Meta {
+    pub fn of(path: &Path, md: &fs::Metadata) -> Meta {
         let mtime_ns = md
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_nanos() as i64)
             .unwrap_or(0);
-        let (ino, ctime_ns) = inode_and_ctime(md);
+        let (ino, ctime_ns) = crate::platform::file_identity(path, md);
         Meta {
             size: md.len(),
             mtime_ns,
@@ -68,20 +68,6 @@ impl Meta {
             ctime_ns: self.ctime_ns,
         }
     }
-}
-
-#[cfg(unix)]
-fn inode_and_ctime(md: &fs::Metadata) -> (u64, i64) {
-    use std::os::unix::fs::MetadataExt;
-    (
-        md.ino(),
-        md.ctime().saturating_mul(1_000_000_000) + md.ctime_nsec(),
-    )
-}
-
-#[cfg(not(unix))]
-fn inode_and_ctime(_md: &fs::Metadata) -> (u64, i64) {
-    (0, 0)
 }
 
 #[cfg(unix)]
@@ -109,23 +95,7 @@ pub fn set_mode(_path: &Path, _mode: Option<u32>) -> Result<()> {
     Ok(())
 }
 
-/// removes `.` and resolves `..` without touching the disk, so `sub/../../x` is stored as the
-/// path it really names and two spellings of one file match.
-pub fn normalise(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for c in path.components() {
-        match c {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                if !out.pop() {
-                    out.push("..");
-                }
-            }
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
-}
+pub use crate::platform::normalise;
 
 #[derive(Debug, Default)]
 pub struct Walk {
@@ -184,7 +154,8 @@ pub fn walk(root: &Path, exclude: &[PathBuf], limit: usize) -> Result<Walk> {
                     out.truncated = true;
                     return Ok(out);
                 }
-                out.files.insert(path, Meta::of(&md));
+                let meta = Meta::of(&path, &md);
+                out.files.insert(path, meta);
             }
         }
     }
@@ -252,7 +223,7 @@ fn capture_inner(store: &Store, path: &Path, cache: Option<&mut Vec<CacheEntry>>
             ..Default::default()
         });
     }
-    let meta = Meta::of(&md);
+    let meta = Meta::of(path, &md);
     let mut img = Image {
         exists: true,
         size: Some(meta.size as i64),
@@ -268,7 +239,9 @@ fn capture_inner(store: &Store, path: &Path, cache: Option<&mut Vec<CacheEntry>>
     }
     let key = path.to_string_lossy().into_owned();
     let now_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(i64::MAX);
-    let settled = cfg!(unix) && now_ns.saturating_sub(meta.mtime_ns) > CACHE_MIN_AGE_NS;
+    // without a change time a same-size rewrite that keeps the mtime would look unchanged.
+    // FAT and exFAT on Windows give a file index but no change time
+    let settled = meta.ctime_ns != 0 && now_ns.saturating_sub(meta.mtime_ns) > CACHE_MIN_AGE_NS;
     if let Some(entries) = cache {
         if settled && let Some(h) = store.cache_get(meta.cache_key(&key))? {
             img.hash = Some(h);
@@ -469,6 +442,18 @@ pub fn change_action(
     opaque_moved: bool,
 ) -> Result<Option<Action>> {
     let img = capture(store, path)?;
+    change_action_from(parent, path, before, opaque_moved, img)
+}
+
+/// [`change_action`] with an image the caller already captured, so the post-image recorded is
+/// exactly the one the caller saw.
+pub fn change_action_from(
+    parent: &Action,
+    path: &Path,
+    before: Before,
+    opaque_moved: bool,
+    img: Image,
+) -> Result<Option<Action>> {
     let unchanged = match &before {
         Before::Absent => !img.exists,
         Before::File {
@@ -540,7 +525,7 @@ pub fn change_action(
 pub fn exclusions(store: &Store) -> Vec<PathBuf> {
     let home = store.home();
     let mut v = vec![home.to_path_buf()];
-    if let Ok(c) = home.canonicalize() {
+    if let Ok(c) = crate::platform::canonical(home) {
         v.push(c);
     }
     v
@@ -572,7 +557,7 @@ mod tests {
                 p.strip_prefix(d.path())
                     .unwrap()
                     .to_string_lossy()
-                    .to_string()
+                    .replace('\\', "/")
             })
             .collect();
         assert_eq!(names, vec!["a.txt", "src/b.rs"]);
@@ -603,15 +588,6 @@ mod tests {
         let w = walk(d.path(), &[], 3).unwrap();
         assert_eq!(w.files.len(), 3);
         assert!(w.truncated);
-    }
-
-    #[test]
-    fn normalise_resolves_dot_dot() {
-        assert_eq!(
-            normalise(Path::new("/a/sub/../../escape.txt")),
-            PathBuf::from("/escape.txt")
-        );
-        assert_eq!(normalise(Path::new("/a/./b")), PathBuf::from("/a/b"));
     }
 
     #[test]

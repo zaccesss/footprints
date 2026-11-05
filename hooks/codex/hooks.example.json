@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [{ "type": "command", "command": "footprints hook pre --from codex" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [{ "type": "command", "command": "footprints hook post --from codex" }]
+      }
+    ]
+  }
+}

@@ -552,7 +552,8 @@ fn write_atomic(
             ))
             .into());
         }
-        fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))?;
+        crate::platform::replace(&tmp, path)
+            .with_context(|| format!("replacing {}", path.display()))?;
         Ok(())
     })();
     if result.is_err() {

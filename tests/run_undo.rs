@@ -530,3 +530,40 @@ fn undoing_an_undo_restores_the_change_and_batches_stay_separate() {
     env.ok(&["undo", &id(&f)]);
     assert_eq!(fs::read_to_string(env.path("f")).unwrap(), "v0\n");
 }
+
+#[test]
+fn a_wrapper_killed_from_outside_is_recovered_on_every_platform() {
+    let env = Env::new();
+    fs::write(env.path("f"), "before\n").unwrap();
+    // the child edits f, then waits for a marker so the wrapper can be killed while it runs
+    let mut wrapper = env
+        .cmd()
+        .args([
+            "run",
+            "--session",
+            "killed",
+            "--",
+            "sh",
+            "-c",
+            "echo after > f; while [ ! -e go ]; do sleep 0.1; done",
+        ])
+        .spawn()
+        .unwrap();
+    let start = std::time::Instant::now();
+    while fs::read_to_string(env.path("f")).unwrap_or_default() != "after\n" {
+        assert!(start.elapsed().as_secs() < 20, "the child never ran");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    // TerminateProcess on Windows and SIGKILL on Unix: no handler runs
+    wrapper.kill().unwrap();
+    wrapper.wait().unwrap();
+    fs::write(env.path("go"), "").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    let rec = env.ok(&["recover"]);
+    assert!(rec.contains("recovered"), "{rec}");
+    let f = env.find("file_write", &env.path("f"));
+    assert_eq!(f["reversible"], true);
+    env.ok(&["undo", &id(&f)]);
+    assert_eq!(fs::read_to_string(env.path("f")).unwrap(), "before\n");
+}

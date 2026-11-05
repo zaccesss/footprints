@@ -1,6 +1,6 @@
 [package]
 name = "footprints"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.89"
 description = "See and undo what AI agents do on your machine: a local ledger of file writes, shell commands and network calls with one-step undo"
@@ -10,7 +10,7 @@ homepage = "https://isaacadjei.me"
 readme = "README.md"
 keywords = ["agents", "undo", "audit", "ledger", "mcp"]
 categories = ["command-line-utilities", "development-tools", "filesystem"]
-exclude = [".github/"]
+exclude = [".github/", "app/", "assets/", "packaging/"]
 
 [dependencies]
 anyhow = "1.0.104"
@@ -24,6 +24,17 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 similar = "3.2.1"
 zstd = "0.14.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+    "Win32_System_Threading",
+] }
 
 [dev-dependencies]
 tempfile = "3.27.0"

@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "write_file|replace|run_shell_command|web_fetch|google_web_search",
+        "hooks": [
+          {
+            "name": "footprints-pre",
+            "type": "command",
+            "command": "footprints hook pre --from gemini",
+            "timeout": 60000
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace|run_shell_command|web_fetch|google_web_search",
+        "hooks": [
+          {
+            "name": "footprints-post",
+            "type": "command",
+            "command": "footprints hook post --from gemini",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}

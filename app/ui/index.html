@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Footprints: today's changes</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Today's changes</h1>
+    <p id="summary">Loading the ledger.</p>
+    <button type="button" id="refresh">Refresh</button>
+  </header>
+  <main>
+    <p id="status" role="status" aria-live="polite"></p>
+    <ol id="rows" aria-label="Recorded actions, newest first"></ol>
+  </main>
+  <footer>
+    <p>Ledger: <span id="ledger"></span></p>
+  </footer>
+</body>
+</html>

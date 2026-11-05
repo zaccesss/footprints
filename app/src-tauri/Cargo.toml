@@ -1,0 +1,30 @@
+[package]
+name = "footprints-app"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.89"
+description = "A menu bar app showing today's Footprints changes with an undo button"
+license = "Apache-2.0"
+repository = "https://github.com/zaccesss/footprints"
+publish = false
+
+# its own workspace, so the root crate's `cargo test` never builds Tauri
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+footprints = { path = "../.." }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+strip = true
