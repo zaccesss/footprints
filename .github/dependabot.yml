@@ -15,8 +15,10 @@ updates:
       actions:
         patterns: ["*"]
 
+  # the menu bar app is its own Cargo workspace with its own lockfile, so it is listed beside the
+  # root or its dependencies are never updated
   - package-ecosystem: cargo
-    directory: /
+    directories: ["/", "/app/src-tauri"]
     schedule:
       interval: weekly
       day: sunday
