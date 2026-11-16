@@ -6,6 +6,13 @@ All notable changes to Footprints are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Dependency updates: notify 8.2.2, rusqlite 0.42.0 and zstd 0.14.4 in the CLI and in the menu bar
+  app. The app keeps its own lockfile, so an update that changes a version requirement in the CLI
+  also needs the app's lockfile updated. Otherwise CI's locked build of the app fails.
+- Dependabot now updates the menu bar app's own dependencies too.
+
 ## [0.4.0] - 2026-11-05
 
 ### Added
